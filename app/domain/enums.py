@@ -50,3 +50,15 @@ class Priority(StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
     URGENT = "urgent"
+
+
+class FeedbackCategory(StrEnum):
+    BUG = "bug"
+    IDEA = "idea"
+    QUESTION = "question"
+    OTHER = "other"
+
+
+class FeedbackStatus(StrEnum):
+    NEW = "new"
+    REVIEWED = "reviewed"

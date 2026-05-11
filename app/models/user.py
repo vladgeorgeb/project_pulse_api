@@ -27,3 +27,4 @@ class User(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    feedback = relationship("Feedback", back_populates="user")

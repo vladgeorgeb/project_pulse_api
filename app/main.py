@@ -10,12 +10,13 @@ from fastapi.responses import JSONResponse
 from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.feedback import router as feedback_router
 from app.api.v1.projects import router as projects_router
 from app.api.v1.workspaces import router as workspaces_router
 from app.core.config import get_settings
 from app.core.database import SessionLocal, engine
 from app.core.migrations import ensure_project_billing_columns
-from app.models import Project, Task, User, Workspace  # noqa: F401
+from app.models import Feedback, Project, Task, User, Workspace  # noqa: F401
 from app.models.base import Base
 from app.services.bootstrap_service import BootstrapService
 
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(workspaces_router, prefix=settings.api_v1_prefix)
     app.include_router(projects_router, prefix=settings.api_v1_prefix)
     app.include_router(dashboard_router, prefix=settings.api_v1_prefix)
+    app.include_router(feedback_router, prefix=settings.api_v1_prefix)
     app.include_router(admin_router, prefix=settings.api_v1_prefix)
 
     return app

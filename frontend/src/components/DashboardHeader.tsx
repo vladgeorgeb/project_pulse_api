@@ -8,6 +8,7 @@ interface DashboardHeaderProps {
   isMutating: boolean;
   theme: Theme;
   onToggleTheme: () => void;
+  onOpenFeedback: () => void;
   onRefresh: () => void;
   onLogout: () => void;
 }
@@ -18,6 +19,7 @@ export default function DashboardHeader({
   isMutating,
   theme,
   onToggleTheme,
+  onOpenFeedback,
   onRefresh,
   onLogout,
 }: DashboardHeaderProps) {
@@ -32,6 +34,9 @@ export default function DashboardHeader({
       </div>
 
       <div className="header-actions">
+        <button type="button" className="secondary-button" onClick={onOpenFeedback}>
+          Send feedback
+        </button>
         <button type="button" className="theme-toggle-button" onClick={onToggleTheme}>
           {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>

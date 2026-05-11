@@ -21,9 +21,22 @@ from app.schemas.admin import (
     AdminWorkspaceResponse,
     AdminWorkspaceUpdateRequest,
 )
+from app.schemas.feedback import AdminFeedbackResponse
 from app.services.admin_service import AdminService
+from app.services.feedback_service import FeedbackService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/feedback", response_model=list[AdminFeedbackResponse])
+def list_feedback(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin),
+) -> list[AdminFeedbackResponse]:
+    return [
+        AdminFeedbackResponse.model_validate(feedback)
+        for feedback in FeedbackService(db).list_feedback()
+    ]
 
 
 @router.get("/users", response_model=list[AdminUserResponse])

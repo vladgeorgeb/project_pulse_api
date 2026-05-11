@@ -30,6 +30,29 @@ def upgrade() -> None:
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
 
     op.create_table(
+        "feedback",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=True),
+        sa.Column("category", sa.String(length=32), nullable=False),
+        sa.Column("message", sa.Text(), nullable=False),
+        sa.Column("page_url", sa.String(length=2048), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("status", sa.String(length=32), server_default="new", nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_feedback_category"), "feedback", ["category"], unique=False
+    )
+    op.create_index(
+        op.f("ix_feedback_created_at"), "feedback", ["created_at"], unique=False
+    )
+    op.create_index(op.f("ix_feedback_id"), "feedback", ["id"], unique=False)
+    op.create_index(op.f("ix_feedback_status"), "feedback", ["status"], unique=False)
+    op.create_index(op.f("ix_feedback_user_id"), "feedback", ["user_id"], unique=False)
+
+    op.create_table(
         "workspaces",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
@@ -227,6 +250,12 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_workspaces_user_id"), table_name="workspaces")
     op.drop_index(op.f("ix_workspaces_id"), table_name="workspaces")
     op.drop_table("workspaces")
+    op.drop_index(op.f("ix_feedback_user_id"), table_name="feedback")
+    op.drop_index(op.f("ix_feedback_status"), table_name="feedback")
+    op.drop_index(op.f("ix_feedback_id"), table_name="feedback")
+    op.drop_index(op.f("ix_feedback_created_at"), table_name="feedback")
+    op.drop_index(op.f("ix_feedback_category"), table_name="feedback")
+    op.drop_table("feedback")
     op.drop_index(op.f("ix_users_id"), table_name="users")
     op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_table("users")

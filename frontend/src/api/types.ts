@@ -5,6 +5,7 @@ export type ContractType = "fixed_price" | "hourly" | "monthly_retainer" | "full
 export type BillingStatus = "not_billable" | "unpaid" | "partially_paid" | "paid" | "overdue";
 export type BillingCycle = "monthly";
 export type PaymentStatus = "not_started" | "pending" | "paid" | "overdue";
+export type FeedbackCategory = "bug" | "idea" | "question" | "other";
 
 export interface TokenResponse {
   access_token: string;
@@ -145,3 +146,18 @@ export interface TaskCreatePayload {
 }
 
 export interface TaskUpdatePayload extends Partial<TaskCreatePayload> {}
+
+export interface FeedbackCreatePayload {
+  category: FeedbackCategory;
+  message: string;
+  page_url?: string | null;
+}
+
+export interface FeedbackResponse {
+  id: number;
+  category: FeedbackCategory;
+  message: string;
+  page_url: string | null;
+  status: "new" | "reviewed";
+  created_at: string;
+}

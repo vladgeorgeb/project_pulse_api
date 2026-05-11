@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./api/client";
 import type {
   DashboardSummary,
+  FeedbackCategory,
   Priority,
   Project,
   ProjectFilters,
@@ -13,6 +14,7 @@ import type {
 import AuthPage from "./components/AuthPage";
 import DashboardHeader from "./components/DashboardHeader";
 import EmptyState from "./components/EmptyState";
+import FeedbackModal from "./components/FeedbackModal";
 import ProjectBoard from "./components/ProjectBoard";
 import ProjectComposer from "./components/ProjectComposer";
 import ProjectFiltersPanel from "./components/ProjectFiltersPanel";
@@ -78,6 +80,10 @@ export default function App() {
   const [state, setState] = useState<DashboardState>(initialDashboardState);
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
@@ -154,6 +160,25 @@ export default function App() {
     setState(initialDashboardState);
     setFilters({ include_archived: false });
     setError(null);
+  }
+
+  async function sendFeedback(payload: { category: FeedbackCategory; message: string }) {
+    if (!token) return;
+
+    setIsSendingFeedback(true);
+    setFeedbackStatus(null);
+    setFeedbackError(null);
+    try {
+      await api.sendFeedback(token, {
+        ...payload,
+        page_url: window.location.href,
+      });
+      setFeedbackStatus("Thanks. Your feedback was sent.");
+    } catch (err) {
+      setFeedbackError(getErrorMessage(err));
+    } finally {
+      setIsSendingFeedback(false);
+    }
   }
 
   async function createDemoData() {
@@ -262,8 +287,22 @@ export default function App() {
         isMutating={isMutating}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onOpenFeedback={() => {
+          setFeedbackStatus(null);
+          setFeedbackError(null);
+          setIsFeedbackOpen(true);
+        }}
         onRefresh={refresh}
         onLogout={logout}
+      />
+
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        disabled={isSendingFeedback}
+        statusMessage={feedbackStatus}
+        errorMessage={feedbackError}
+        onClose={() => setIsFeedbackOpen(false)}
+        onSubmit={sendFeedback}
       />
 
       {error ? <div className="notice">{error}</div> : null}

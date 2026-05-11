@@ -1,5 +1,7 @@
 import type {
   DashboardSummary,
+  FeedbackCreatePayload,
+  FeedbackResponse,
   Project,
   ProjectCreatePayload,
   ProjectFilters,
@@ -191,5 +193,12 @@ export const api = {
 
   async deleteTask(token: string, taskId: number): Promise<void> {
     await request<null>(`/tasks/${taskId}`, token, { method: "DELETE" });
+  },
+
+  async sendFeedback(token: string, payload: FeedbackCreatePayload): Promise<FeedbackResponse> {
+    return request<FeedbackResponse>("/feedback", token, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 };

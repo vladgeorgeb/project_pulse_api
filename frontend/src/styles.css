@@ -337,12 +337,19 @@ textarea:focus {
 }
 
 .form-error,
+.form-success,
 .notice {
   border-radius: 16px;
   padding: 12px 14px;
   background: var(--warning-bg);
   color: var(--warning-text);
   font-weight: 700;
+}
+
+.form-success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  margin-bottom: 14px;
 }
 
 .notice {
@@ -906,6 +913,54 @@ textarea:focus {
   color: var(--muted) !important;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.feedback-modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  background: var(--panel-bg);
+  box-shadow: 0 28px 80px var(--panel-shadow);
+  padding: 22px;
+}
+
+.feedback-modal-header,
+.feedback-modal-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.feedback-modal-header {
+  margin-bottom: 18px;
+}
+
+.feedback-modal-header h2 {
+  margin: 6px 0 0;
+  font-size: 1.35rem;
+}
+
+.feedback-modal-actions {
+  align-items: center;
+}
+
+.feedback-modal-actions span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 @media (max-width: 1180px) {
   .summary-groups,
   .project-board {
@@ -939,6 +994,8 @@ textarea:focus {
   }
 
   .dashboard-header,
+  .feedback-modal-header,
+  .feedback-modal-actions,
   .project-card-header,
   .task-card {
     flex-direction: column;
