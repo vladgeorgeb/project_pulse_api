@@ -11,6 +11,8 @@ def _set_valid_production_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECRET_KEY", "a-very-strong-secret-key-for-production")
     monkeypatch.setenv("BACKEND_CORS_ORIGINS", "https://project-pulse.example.com")
     monkeypatch.setenv("ADMIN_PASSWORD", "strong-admin-pass123")
+    monkeypatch.setenv("AUTH_RATE_LIMIT_BACKEND", "redis")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
 
 
 def test_production_rejects_insecure_secret(
@@ -71,3 +73,24 @@ def test_postgres_url_is_normalized_for_psycopg(
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.docs_enabled is False
     assert settings.auto_create_tables is False
+
+
+def test_production_requires_redis_rate_limit_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_valid_production_env(monkeypatch)
+    monkeypatch.setenv("AUTH_RATE_LIMIT_BACKEND", "memory")
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
+    with pytest.raises(RuntimeError, match="AUTH_RATE_LIMIT_BACKEND=redis"):
+        Settings.from_env()
+
+
+def test_redis_rate_limit_backend_requires_redis_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTH_RATE_LIMIT_BACKEND", "redis")
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
+    with pytest.raises(RuntimeError, match="REDIS_URL"):
+        Settings.from_env()

@@ -263,6 +263,15 @@ DOCS_ENABLED=true
 AUTO_CREATE_TABLES=true
 RUN_STARTUP_MIGRATIONS=true
 LOG_LEVEL=INFO
+AUTH_RATE_LIMIT_ENABLED=true
+AUTH_RATE_LIMIT_BACKEND=memory
+REDIS_URL=
+LOGIN_RATE_LIMIT_IP_ATTEMPTS=5
+LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS=5
+LOGIN_RATE_LIMIT_WINDOW_SECONDS=60
+REGISTER_RATE_LIMIT_IP_ATTEMPTS=3
+REGISTER_RATE_LIMIT_EMAIL_ATTEMPTS=3
+REGISTER_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
 Production validation fails startup when:
@@ -273,6 +282,13 @@ Production validation fails startup when:
 - `BACKEND_CORS_ORIGINS=*`.
 - `AUTO_CREATE_TABLES=true`.
 - `ADMIN_PASSWORD` uses the local default.
+- `AUTH_RATE_LIMIT_ENABLED=true` without `AUTH_RATE_LIMIT_BACKEND=redis`.
+
+Auth rate limiting applies to login and register requests before credential
+checks. Login is limited by client IP and submitted email/username; registration
+is limited by client IP and submitted email. Local/demo environments can use the
+in-memory backend, but production should set `AUTH_RATE_LIMIT_BACKEND=redis` and
+`REDIS_URL` so limits are shared across app processes.
 
 ## Frontend Environment Variables
 
@@ -569,6 +585,15 @@ DOCS_ENABLED=false
 AUTO_CREATE_TABLES=false
 RUN_STARTUP_MIGRATIONS=false
 LOG_LEVEL=INFO
+AUTH_RATE_LIMIT_ENABLED=true
+AUTH_RATE_LIMIT_BACKEND=redis
+REDIS_URL=${{Redis.REDIS_URL}}
+LOGIN_RATE_LIMIT_IP_ATTEMPTS=5
+LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS=5
+LOGIN_RATE_LIMIT_WINDOW_SECONDS=60
+REGISTER_RATE_LIMIT_IP_ATTEMPTS=3
+REGISTER_RATE_LIMIT_EMAIL_ATTEMPTS=3
+REGISTER_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
 Railway may provide a `postgresql://` or `postgres://` URL. The backend normalizes
@@ -623,6 +648,8 @@ variables.
   appear in the schema.
 - Do not log passwords, tokens, auth headers, or real secrets. The current app
   does not intentionally log those values.
+- Login and registration return `429` after too many attempts with a generic
+  message, avoiding responses that reveal whether an email exists.
 
 ## Roadmap
 
@@ -631,5 +658,4 @@ Potential next steps:
 - invoice entities and invoice generation
 - richer payment history
 - account deletion/export flows
-- rate limiting for login/register
 - role-based permissions beyond `is_admin`

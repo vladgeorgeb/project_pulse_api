@@ -79,6 +79,50 @@ def test_login_with_wrong_password_returns_401(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_login_rate_limit_applies_by_email_without_leaking_existence(
+    client: TestClient,
+) -> None:
+    for _ in range(5):
+        response = client.post(
+            "/api/v1/auth/login",
+            data={
+                "username": "missing@example.com",
+                "password": "wrongpassword",
+            },
+        )
+        assert response.status_code == 401
+
+    response = client.post(
+        "/api/v1/auth/login",
+        data={"username": "missing@example.com", "password": "wrongpassword"},
+    )
+
+    assert response.status_code == 429
+    assert response.json()["detail"] == "Too many attempts. Please try again later."
+    assert "Retry-After" in response.headers
+
+
+def test_register_rate_limit_applies_by_ip(client: TestClient) -> None:
+    for index in range(3):
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": f"user-{index}@example.com",
+                "password": "strongpass123",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "user-4@example.com", "password": "strongpass123"},
+    )
+
+    assert response.status_code == 429
+    assert response.json()["detail"] == "Too many attempts. Please try again later."
+    assert "Retry-After" in response.headers
+
+
 def test_invalid_token_returns_401(client: TestClient) -> None:
     response = client.get(
         "/api/v1/workspaces/me",

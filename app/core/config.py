@@ -23,6 +23,7 @@ INSECURE_SECRET_KEYS = {
     "test-secret-key",
 }
 Environment = Literal["local", "development", "test", "production"]
+RateLimitBackend = Literal["memory", "redis"]
 
 
 def _get_bool_env(name: str, default: bool) -> bool:
@@ -57,6 +58,15 @@ class Settings:
     auto_create_tables: bool
     run_startup_migrations: bool
     log_level: str
+    auth_rate_limit_enabled: bool
+    auth_rate_limit_backend: RateLimitBackend
+    redis_url: str | None
+    login_rate_limit_ip_attempts: int
+    login_rate_limit_email_attempts: int
+    login_rate_limit_window_seconds: int
+    register_rate_limit_ip_attempts: int
+    register_rate_limit_email_attempts: int
+    register_rate_limit_window_seconds: int
 
     @property
     def is_production(self) -> bool:
@@ -69,6 +79,16 @@ class Settings:
             raise RuntimeError(
                 "ENVIRONMENT must be one of: local, development, test, production."
             )
+        auth_rate_limit_backend = (
+            os.getenv(
+                "AUTH_RATE_LIMIT_BACKEND",
+                "redis" if os.getenv("REDIS_URL") else "memory",
+            )
+            .strip()
+            .lower()
+        )
+        if auth_rate_limit_backend not in {"memory", "redis"}:
+            raise RuntimeError("AUTH_RATE_LIMIT_BACKEND must be one of: memory, redis.")
 
         database_url = os.getenv("DATABASE_URL", LOCAL_DATABASE_URL)
         cors_default = "http://localhost:5173,http://127.0.0.1:5173"
@@ -103,6 +123,27 @@ class Settings:
                 environment != "production",
             ),
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
+            auth_rate_limit_enabled=_get_bool_env("AUTH_RATE_LIMIT_ENABLED", True),
+            auth_rate_limit_backend=auth_rate_limit_backend,  # type: ignore[arg-type]
+            redis_url=os.getenv("REDIS_URL"),
+            login_rate_limit_ip_attempts=int(
+                os.getenv("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "5")
+            ),
+            login_rate_limit_email_attempts=int(
+                os.getenv("LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS", "5")
+            ),
+            login_rate_limit_window_seconds=int(
+                os.getenv("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "60")
+            ),
+            register_rate_limit_ip_attempts=int(
+                os.getenv("REGISTER_RATE_LIMIT_IP_ATTEMPTS", "3")
+            ),
+            register_rate_limit_email_attempts=int(
+                os.getenv("REGISTER_RATE_LIMIT_EMAIL_ATTEMPTS", "3")
+            ),
+            register_rate_limit_window_seconds=int(
+                os.getenv("REGISTER_RATE_LIMIT_WINDOW_SECONDS", "60")
+            ),
         )
         settings.validate()
         return settings
@@ -116,6 +157,29 @@ class Settings:
             raise RuntimeError("Only JWT_ALGORITHM=HS256 is currently supported.")
         if self.access_token_expire_minutes <= 0:
             raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be greater than zero.")
+        rate_limit_values = {
+            "LOGIN_RATE_LIMIT_IP_ATTEMPTS": self.login_rate_limit_ip_attempts,
+            "LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS": self.login_rate_limit_email_attempts,
+            "LOGIN_RATE_LIMIT_WINDOW_SECONDS": self.login_rate_limit_window_seconds,
+            "REGISTER_RATE_LIMIT_IP_ATTEMPTS": self.register_rate_limit_ip_attempts,
+            "REGISTER_RATE_LIMIT_EMAIL_ATTEMPTS": (
+                self.register_rate_limit_email_attempts
+            ),
+            "REGISTER_RATE_LIMIT_WINDOW_SECONDS": (
+                self.register_rate_limit_window_seconds
+            ),
+        }
+        invalid_rate_limit_names = [
+            name for name, value in rate_limit_values.items() if value <= 0
+        ]
+        if invalid_rate_limit_names:
+            raise RuntimeError(
+                f"{invalid_rate_limit_names[0]} must be greater than zero."
+            )
+        if self.auth_rate_limit_backend == "redis" and not self.redis_url:
+            raise RuntimeError(
+                "REDIS_URL is required when AUTH_RATE_LIMIT_BACKEND=redis."
+            )
         if not self.cors_origins:
             raise RuntimeError("At least one CORS origin must be configured.")
         if self.is_production:
@@ -139,6 +203,10 @@ class Settings:
                 )
             if self.auto_create_tables:
                 raise RuntimeError("AUTO_CREATE_TABLES must be false in production.")
+            if self.auth_rate_limit_enabled and self.auth_rate_limit_backend != "redis":
+                raise RuntimeError(
+                    "AUTH_RATE_LIMIT_BACKEND=redis is required in production."
+                )
             if not self.admin_email or not self.admin_password:
                 raise RuntimeError(
                     "ADMIN_EMAIL and ADMIN_PASSWORD are required in production."

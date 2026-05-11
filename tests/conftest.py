@@ -22,6 +22,7 @@ os.environ["ADMIN_EMAIL"] = "admin@example.com"
 os.environ["ADMIN_PASSWORD"] = "adminpass123"
 
 from app.core.database import get_db  # noqa: E402
+from app.core.rate_limit import auth_rate_limiter  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models.base import Base  # noqa: E402
 from app.services.bootstrap_service import BootstrapService  # noqa: E402
@@ -42,6 +43,7 @@ TestingSessionLocal = sessionmaker(
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
+    auth_rate_limiter.reset()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -66,4 +68,5 @@ def client() -> Generator[TestClient, None, None]:
         yield test_client
 
     app.dependency_overrides.clear()
+    auth_rate_limiter.reset()
     Base.metadata.drop_all(bind=engine)
