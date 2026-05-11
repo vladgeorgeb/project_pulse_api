@@ -494,6 +494,17 @@ workflows, ownership isolation, dashboard metrics, admin CRUD flows, production
 settings validation, health/CORS behavior, domain rules, and the end-to-end
 project completion journey.
 
+## Continuous Integration
+
+GitHub Actions runs backend and frontend checks on pushes and pull requests:
+
+- Backend: install Python dependencies, run Black, isort, flake8, and pytest.
+- Frontend: install dependencies with `npm ci`, then run `npm run build`.
+
+The frontend does not currently define a separate lint script. Its production
+build already runs `tsc --noEmit` before Vite, so CI covers TypeScript checking
+and the production build without adding another tool.
+
 ## Railway Backend Deployment
 
 Recommended Railway service: backend app plus Railway PostgreSQL.
@@ -594,4 +605,3 @@ Potential next steps:
 - account deletion/export flows
 - rate limiting for login/register
 - role-based permissions beyond `is_admin`
-- CI pipeline for backend and frontend checks
