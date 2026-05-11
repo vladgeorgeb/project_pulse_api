@@ -16,6 +16,8 @@ the project a usable operating surface.
 - User registration and OAuth2 password login
 - Bearer-token authentication with signed expiring tokens
 - Password hashing with PBKDF2-HMAC-SHA256
+- JSON account export for the authenticated user's own data
+- Self-service account deletion with password confirmation
 - One workspace per user, created automatically at registration
 - Workspace settings for business name and monthly capacity
 - Bootstrap admin user from environment variables
@@ -343,6 +345,48 @@ Use the returned token in authenticated requests:
 Authorization: Bearer <access_token>
 ```
 
+### Export My Account
+
+```http
+GET /api/v1/account/export
+Authorization: Bearer <access_token>
+```
+
+The export is JSON and scoped to the authenticated user only. It includes the
+account profile, business/workspace profile when present, clients derived from
+project client names, projects, tasks, and project billing/payment fields.
+There is no invoice entity yet, so the `billing.invoices` array is currently
+empty.
+
+### Delete My Account
+
+```http
+DELETE /api/v1/account
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "password": "strongpass123"
+}
+```
+
+Deletion is self-service only: the endpoint never accepts another user's ID.
+The current password must match before deletion runs. The app hard-deletes the
+user account, workspace, projects, and tasks through the existing SQLAlchemy
+cascade relationships, then future requests with old tokens fail because the
+user no longer exists. Feedback submitted by the user is retained for admin
+review with `user_id` cleared.
+
+Admin users can export only their own account through this endpoint. Admin
+self-deletion requires an explicit extra flag:
+
+```json
+{
+  "password": "adminpass123",
+  "confirm_admin_self_deletion": true
+}
+```
+
 ### Get My Workspace
 
 ```http
@@ -509,6 +553,10 @@ PUT    /api/v1/admin/projects/{project_id}
 DELETE /api/v1/admin/tasks/{task_id}
 ```
 
+User deletion by admins remains an explicit admin API operation on
+`DELETE /api/v1/admin/users/{user_id}`. The self-service account deletion
+endpoint has no user ID parameter and cannot be used to delete another account.
+
 ## Database and Migrations
 
 Local development may use SQLite. Production should use PostgreSQL.
@@ -560,9 +608,9 @@ npm run build
 ```
 
 Current tests cover authentication, workspace creation, project and task
-workflows, ownership isolation, dashboard metrics, admin CRUD flows, production
-settings validation, health/CORS behavior, domain rules, and the end-to-end
-project completion journey.
+workflows, account export/deletion, ownership isolation, dashboard metrics,
+admin CRUD flows, production settings validation, health/CORS behavior, domain
+rules, and the end-to-end project completion journey.
 
 ## Continuous Integration
 
@@ -663,6 +711,11 @@ variables.
 
 - User-owned workspaces, projects, tasks, billing fields, and dashboard metrics
   are scoped to the authenticated user.
+- Account export is scoped to the authenticated user and does not include
+  password hashes or other users' data.
+- Account deletion requires password confirmation. It hard-deletes the user's
+  workspace, projects, and tasks, and detaches retained feedback by setting
+  `feedback.user_id` to `NULL`.
 - Cross-user project/task access returns `404` to avoid confirming that another
   user's record exists.
 - Tokens are bearer tokens with an expiry and are stored by the frontend in
@@ -682,5 +735,4 @@ Potential next steps:
 
 - invoice entities and invoice generation
 - richer payment history
-- account deletion/export flows
 - role-based permissions beyond `is_admin`

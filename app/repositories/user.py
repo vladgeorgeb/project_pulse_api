@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session, selectinload
 
+from app.models.feedback import Feedback
+from app.models.project import Project
 from app.models.user import User
+from app.models.workspace import Workspace
 
 
 class UserRepository:
@@ -22,6 +25,19 @@ class UserRepository:
 
     def get_by_id(self, user_id: int) -> User | None:
         stmt = select(User).where(User.id == user_id)
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def get_with_owned_data(self, user_id: int) -> User | None:
+        stmt = (
+            select(User)
+            .options(
+                selectinload(User.workspace)
+                .selectinload(Workspace.projects)
+                .selectinload(Project.tasks)
+            )
+            .where(User.id == user_id)
+            .execution_options(populate_existing=True)
+        )
         return self.db.execute(stmt).scalar_one_or_none()
 
     def add(
@@ -47,4 +63,14 @@ class UserRepository:
 
     def delete(self, user: User) -> None:
         self.db.delete(user)
+        self.db.flush()
+
+    def detach_feedback(self, user_id: int) -> None:
+        stmt = (
+            update(Feedback)
+            .where(Feedback.user_id == user_id)
+            .values(user_id=None)
+            .execution_options(synchronize_session=False)
+        )
+        self.db.execute(stmt)
         self.db.flush()
