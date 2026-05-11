@@ -70,6 +70,9 @@ health:
 - pending payment amount
 - overdue payment amount and count
 
+<img width="1439" height="354" alt="image" src="https://github.com/user-attachments/assets/b6067fa3-3166-40be-887c-ee7c37b13348" />
+
+
 ### Admin API
 
 Admin users can manage users, workspaces, projects, and tasks through
