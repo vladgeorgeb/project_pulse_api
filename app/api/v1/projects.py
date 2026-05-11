@@ -10,7 +10,6 @@ from app.api.deps import get_current_user
 from app.api.serializers import to_project_response
 from app.core.database import get_db
 from app.core.exceptions import (
-    AuthorizationError,
     BusinessRuleError,
     NotFoundError,
     ValidationError,
@@ -135,8 +134,6 @@ def get_project(
         project = service.get_project_for_user(user=current_user, project_id=project_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     return to_project_response(project)
 
 
@@ -202,8 +199,6 @@ def update_project(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except BusinessRuleError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValidationError as exc:
@@ -222,8 +217,6 @@ def delete_project(
         service.delete_project(user=current_user, project_id=project_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.post(
@@ -240,8 +233,6 @@ def complete_project(
         project = service.complete_project(user=current_user, project_id=project_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except BusinessRuleError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ProjectActionResponse(
@@ -276,8 +267,6 @@ def create_task(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     return TaskResponse.model_validate(task)
 
 
@@ -303,8 +292,6 @@ def update_task(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except (BusinessRuleError, ValidationError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return TaskResponse.model_validate(task)
@@ -326,8 +313,6 @@ def complete_task(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except (BusinessRuleError, ValidationError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return TaskResponse.model_validate(task)
@@ -344,5 +329,3 @@ def delete_task(
         service.delete_task(user=current_user, task_id=task_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc

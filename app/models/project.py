@@ -12,6 +12,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -85,7 +86,7 @@ class Project(Base):
     billing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     deadline: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     archived: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="0", index=True
+        Boolean, nullable=False, default=False, server_default=false(), index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

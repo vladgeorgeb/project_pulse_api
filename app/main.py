@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -19,12 +20,21 @@ from app.models.base import Base
 from app.services.bootstrap_service import BootstrapService
 
 settings = get_settings()
+logging.basicConfig(level=settings.log_level)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    ensure_project_billing_columns(engine)
+    logger.info(
+        "Starting %s in %s environment.",
+        settings.app_name,
+        settings.environment,
+    )
+    if settings.auto_create_tables:
+        Base.metadata.create_all(bind=engine)
+    if settings.run_startup_migrations and settings.database_url.startswith("sqlite"):
+        ensure_project_billing_columns(engine)
     db = SessionLocal()
     try:
         BootstrapService(db).ensure_admin_user()
@@ -37,6 +47,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         debug=settings.debug,
+        docs_url="/docs" if settings.docs_enabled else None,
+        redoc_url="/redoc" if settings.docs_enabled else None,
+        openapi_url="/openapi.json" if settings.docs_enabled else None,
         lifespan=lifespan,
     )
 
@@ -50,7 +63,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def healthcheck() -> JSONResponse:
-        return JSONResponse({"status": "ok"})
+        return JSONResponse({"status": "ok", "environment": settings.environment})
 
     app.include_router(auth_router, prefix=settings.api_v1_prefix)
     app.include_router(workspaces_router, prefix=settings.api_v1_prefix)

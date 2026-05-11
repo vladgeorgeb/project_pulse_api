@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi.testclient import TestClient
+
+from app.core.security import create_access_token
 
 
 def test_register_returns_access_token_and_creates_workspace(
@@ -52,6 +56,15 @@ def test_duplicate_registration_returns_409(client: TestClient) -> None:
     assert response.status_code == 409
 
 
+def test_weak_password_registration_returns_422(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "user@example.com", "password": "password"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_login_with_wrong_password_returns_401(client: TestClient) -> None:
     client.post(
         "/api/v1/auth/register",
@@ -62,5 +75,31 @@ def test_login_with_wrong_password_returns_401(client: TestClient) -> None:
         "/api/v1/auth/login",
         data={"username": "user@example.com", "password": "wrongpassword"},
     )
+
+    assert response.status_code == 401
+
+
+def test_invalid_token_returns_401(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/workspaces/me",
+        headers={"Authorization": "Bearer not-a-valid-token"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_expired_token_returns_401(client: TestClient) -> None:
+    token = create_access_token("1", expires_delta=timedelta(minutes=-1))
+
+    response = client.get(
+        "/api/v1/workspaces/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_protected_endpoint_requires_token(client: TestClient) -> None:
+    response = client.get("/api/v1/projects")
 
     assert response.status_code == 401

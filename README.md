@@ -84,6 +84,8 @@ Admin users can manage users, workspaces, projects, and tasks through
 - FastAPI
 - SQLAlchemy ORM
 - SQLite for local development
+- PostgreSQL for production deployments
+- Alembic migrations
 - Pydantic v2
 - Pytest
 - Black, isort, flake8
@@ -155,7 +157,13 @@ The application is intentionally layered:
 - Domain modules hold enums, constants, and workflow rules.
 - Models define database entities.
 
-## Quick Start
+## Local Development
+
+Copy the backend environment example:
+
+```bash
+cp .env.example .env
+```
 
 Create and activate a virtual environment:
 
@@ -175,6 +183,12 @@ Install backend dependencies:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Run database migrations:
+
+```bash
+alembic upgrade head
 ```
 
 Run the API:
@@ -197,10 +211,12 @@ GET /health
 
 ## React Dashboard
 
-Install and run the frontend in a second terminal:
+Copy the frontend environment example, then install and run the frontend in a
+second terminal:
 
 ```bash
 cd frontend
+cp .env.example .env
 npm install
 npm run dev
 ```
@@ -223,24 +239,51 @@ To override it, create `frontend/.env`:
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
-## Environment Variables
+Production frontend builds require `VITE_API_BASE_URL`; this prevents Vercel
+from accidentally building a deployed app that points at localhost.
 
-The app runs locally with defaults. Override these as needed:
+## Backend Environment Variables
+
+Use `.env.example` as the local template. Do not commit real `.env` files.
 
 ```env
+ENVIRONMENT=local
 APP_NAME=Project Pulse API
 API_V1_PREFIX=/api/v1
 DATABASE_URL=sqlite:///data/project_pulse.db
-SECRET_KEY=replace-this-secret-in-production
+SECRET_KEY=change-this-to-a-long-random-secret-for-local-dev
+JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 DEBUG=false
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=adminpass123
-CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+ADMIN_PASSWORD=change-this-local-admin-password123
+BACKEND_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+DOCS_ENABLED=true
+AUTO_CREATE_TABLES=true
+RUN_STARTUP_MIGRATIONS=true
+LOG_LEVEL=INFO
 ```
 
-For deployed environments, use a strong `SECRET_KEY`, manage secrets outside the
-repository, and use a production database such as PostgreSQL.
+Production validation fails startup when:
+
+- `SECRET_KEY` is missing, too short, or uses a known insecure default.
+- `DATABASE_URL` is missing or points at SQLite.
+- `DEBUG=true`.
+- `BACKEND_CORS_ORIGINS=*`.
+- `AUTO_CREATE_TABLES=true`.
+- `ADMIN_PASSWORD` uses the local default.
+
+## Frontend Environment Variables
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+On Vercel, set this to the deployed Railway backend API prefix, for example:
+
+```env
+VITE_API_BASE_URL=https://your-backend.up.railway.app/api/v1
+```
 
 ## Main API Flow
 
@@ -372,11 +415,11 @@ Authorization: Bearer <access_token>
 
 An admin user is created on application startup if it does not already exist.
 
-Default local credentials:
+Default local credentials come from `.env.example` values if you copy them:
 
 ```text
 email: admin@example.com
-password: adminpass123
+password: change-this-local-admin-password123
 ```
 
 Admin endpoints are available under:
@@ -398,11 +441,22 @@ DELETE /api/v1/admin/tasks/{task_id}
 
 ## Database and Migrations
 
-Local development uses SQLite. Tables are created on startup with SQLAlchemy
-metadata. The project also includes a small startup migration helper for
-backfilling project billing columns in existing local SQLite databases.
+Local development may use SQLite. Production should use PostgreSQL.
 
-Alembic is not currently required for local development.
+Run migrations locally:
+
+```bash
+alembic upgrade head
+```
+
+Generate a new migration after model changes:
+
+```bash
+alembic revision --autogenerate -m "describe change"
+```
+
+In production, run migrations before starting the app. Runtime table creation is
+disabled by validation when `ENVIRONMENT=production`.
 
 ## Tests and Quality Checks
 
@@ -424,12 +478,111 @@ Build the frontend:
 
 ```bash
 cd frontend
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run build
+```
+
+On Windows PowerShell:
+
+```powershell
+cd frontend
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1"
 npm run build
 ```
 
 Current tests cover authentication, workspace creation, project and task
-workflows, ownership isolation, dashboard metrics, admin CRUD flows, domain
-rules, and the end-to-end project completion journey.
+workflows, ownership isolation, dashboard metrics, admin CRUD flows, production
+settings validation, health/CORS behavior, domain rules, and the end-to-end
+project completion journey.
+
+## Railway Backend Deployment
+
+Recommended Railway service: backend app plus Railway PostgreSQL.
+
+1. Create a Railway project and add a PostgreSQL database.
+2. Connect this repository as the backend service.
+3. Set the backend root directory to the repository root.
+4. Set the start command, or rely on the included `Procfile`:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+5. Set a pre-deploy or one-off migration command:
+
+```bash
+alembic upgrade head
+```
+
+6. Configure production environment variables:
+
+```env
+ENVIRONMENT=production
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+SECRET_KEY=<generate-a-long-random-secret>
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+DEBUG=false
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=<generate-a-strong-admin-password>
+BACKEND_CORS_ORIGINS=https://your-vercel-app.vercel.app
+DOCS_ENABLED=false
+AUTO_CREATE_TABLES=false
+RUN_STARTUP_MIGRATIONS=false
+LOG_LEVEL=INFO
+```
+
+Railway may provide a `postgresql://` or `postgres://` URL. The backend normalizes
+that to the `psycopg` SQLAlchemy driver automatically.
+
+## Vercel Frontend Deployment
+
+Deploy the `frontend/` directory as a Vercel project.
+
+Use these Vercel build settings:
+
+```text
+Framework Preset: Vite
+Root Directory: frontend
+Install Command: npm install
+Build Command: npm run build
+Output Directory: dist
+```
+
+Set:
+
+```env
+VITE_API_BASE_URL=https://your-railway-backend.up.railway.app/api/v1
+```
+
+After Vercel gives you a production URL, update Railway
+`BACKEND_CORS_ORIGINS` to include that exact origin. If you later add a custom
+domain, add that origin too, separated by commas:
+
+```env
+BACKEND_CORS_ORIGINS=https://project-pulse.example.com,https://your-vercel-app.vercel.app
+```
+
+## Demo Accounts
+
+The app supports public self-registration, so a portfolio visitor can create a
+demo account from the frontend. There is no hardcoded shared demo account.
+Admin access is only for the bootstrap admin configured through environment
+variables.
+
+## Security Notes
+
+- User-owned workspaces, projects, tasks, billing fields, and dashboard metrics
+  are scoped to the authenticated user.
+- Cross-user project/task access returns `404` to avoid confirming that another
+  user's record exists.
+- Tokens are bearer tokens with an expiry and are stored by the frontend in
+  `localStorage`. This is simple for a portfolio SaaS demo, but it is more
+  exposed to XSS than an HTTP-only cookie design.
+- OpenAPI docs are disabled by default in production. You can set
+  `DOCS_ENABLED=true` for a public portfolio demo, but admin endpoints will still
+  appear in the schema.
+- Do not log passwords, tokens, auth headers, or real secrets. The current app
+  does not intentionally log those values.
 
 ## Roadmap
 
@@ -437,9 +590,8 @@ Potential next steps:
 
 - invoice entities and invoice generation
 - richer payment history
-- PostgreSQL deployment profile
-- Alembic migrations
-- Docker and docker-compose
 - pagination and sorting for project lists
+- account deletion/export flows
+- rate limiting for login/register
 - role-based permissions beyond `is_admin`
 - CI pipeline for backend and frontend checks

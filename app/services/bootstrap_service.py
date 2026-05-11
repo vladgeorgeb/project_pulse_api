@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.security import hash_password
 from app.repositories.user import UserRepository
+from app.services.registration_service import validate_password_strength
 
 
 class BootstrapService:
@@ -17,6 +18,7 @@ class BootstrapService:
     def ensure_admin_user(self) -> None:
         settings = get_settings()
         admin_email = settings.admin_email.strip().lower()
+        validate_password_strength(settings.admin_password)
         existing = self.users.get_by_email(admin_email)
         if existing is not None:
             if not existing.is_admin:

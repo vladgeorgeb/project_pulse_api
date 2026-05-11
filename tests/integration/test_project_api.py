@@ -348,4 +348,4 @@ def test_user_cannot_access_another_users_project(client: TestClient) -> None:
         headers=_headers(second_token),
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404

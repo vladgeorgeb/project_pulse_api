@@ -11,9 +11,16 @@ import type {
   Workspace,
 } from "./types";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://127.0.0.1:8000/api/v1";
+function getApiBaseUrl(): string {
+  const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  if (rawApiBaseUrl) return rawApiBaseUrl.replace(/\/$/, "");
+  if (import.meta.env.DEV) return "http://127.0.0.1:8000/api/v1";
+
+  throw new Error("VITE_API_BASE_URL must be configured for production builds.");
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
   readonly status: number;

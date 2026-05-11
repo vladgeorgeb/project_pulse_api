@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AuthorizationError, NotFoundError
+from app.core.exceptions import NotFoundError
 from app.domain.enums import TaskStatus
 from app.domain.project_rules import validate_task_status_transition
 from app.models.task import Task
@@ -118,10 +118,15 @@ class TaskService:
         return task
 
     def get_task_for_user(self, *, user: User, task_id: int) -> Task:
-        task = self.tasks.get_by_id(task_id)
+        workspace = self.workspaces.get_by_user_id(user.id)
+        if workspace is None:
+            raise NotFoundError("Workspace not found.")
+        task = self.tasks.get_for_workspace(
+            task_id=task_id,
+            workspace_id=workspace.id,
+        )
         if task is None:
             raise NotFoundError("Task not found.")
-        self._get_project_for_user(user=user, project_id=task.project_id)
         return task
 
     def delete_task(self, *, user: User, task_id: int) -> None:
@@ -133,9 +138,10 @@ class TaskService:
         workspace = self.workspaces.get_by_user_id(user.id)
         if workspace is None:
             raise NotFoundError("Workspace not found.")
-        project = self.projects.get_by_id(project_id)
+        project = self.projects.get_for_workspace(
+            project_id=project_id,
+            workspace_id=workspace.id,
+        )
         if project is None:
             raise NotFoundError("Project not found.")
-        if project.workspace_id != workspace.id:
-            raise AuthorizationError("You can only access your own projects.")
         return project

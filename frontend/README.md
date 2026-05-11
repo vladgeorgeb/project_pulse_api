@@ -14,6 +14,7 @@ Then start the frontend:
 
 ```bash
 cd frontend
+cp .env.example .env
 npm install
 npm run dev
 ```
@@ -28,4 +29,10 @@ The frontend expects the API at `http://127.0.0.1:8000/api/v1` by default. Overr
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+Production builds require `VITE_API_BASE_URL`, for example:
+
+```env
+VITE_API_BASE_URL=https://your-railway-backend.up.railway.app/api/v1
 ```

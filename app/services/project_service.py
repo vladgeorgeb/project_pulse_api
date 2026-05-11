@@ -6,7 +6,6 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
-    AuthorizationError,
     BusinessRuleError,
     NotFoundError,
     ValidationError,
@@ -87,11 +86,12 @@ class ProjectService:
 
     def get_project_for_user(self, *, user: User, project_id: int) -> Project:
         workspace = self._workspace_for_user(user)
-        project = self.projects.get_by_id(project_id)
+        project = self.projects.get_for_workspace(
+            project_id=project_id,
+            workspace_id=workspace.id,
+        )
         if project is None:
             raise NotFoundError("Project not found.")
-        if project.workspace_id != workspace.id:
-            raise AuthorizationError("You can only access your own projects.")
         return project
 
     def create_project(
@@ -157,7 +157,13 @@ class ProjectService:
         self.projects.add(project)
         self.db.commit()
         self.db.refresh(project)
-        return self.projects.get_by_id(project.id) or project
+        return (
+            self.projects.get_for_workspace(
+                project_id=project.id,
+                workspace_id=workspace.id,
+            )
+            or project
+        )
 
     def update_project(
         self,
@@ -193,7 +199,13 @@ class ProjectService:
         deadline: date | None,
         archived: bool | None,
     ) -> Project:
-        project = self.get_project_for_user(user=user, project_id=project_id)
+        workspace = self._workspace_for_user(user)
+        project = self.projects.get_for_workspace(
+            project_id=project_id,
+            workspace_id=workspace.id,
+        )
+        if project is None:
+            raise NotFoundError("Project not found.")
 
         if status == ProjectStatus.COMPLETED.value:
             validate_project_completion(task.status for task in project.tasks)
@@ -270,7 +282,10 @@ class ProjectService:
         self.projects.save(project)
         self.db.commit()
         self.db.expire_all()
-        refreshed = self.projects.get_by_id(project_id)
+        refreshed = self.projects.get_for_workspace(
+            project_id=project_id,
+            workspace_id=workspace.id,
+        )
         if refreshed is None:
             raise NotFoundError("Project not found.")
         return refreshed
@@ -281,7 +296,13 @@ class ProjectService:
         self.db.commit()
 
     def complete_project(self, *, user: User, project_id: int) -> Project:
-        project = self.get_project_for_user(user=user, project_id=project_id)
+        workspace = self._workspace_for_user(user)
+        project = self.projects.get_for_workspace(
+            project_id=project_id,
+            workspace_id=workspace.id,
+        )
+        if project is None:
+            raise NotFoundError("Project not found.")
         try:
             validate_project_completion(task.status for task in project.tasks)
         except BusinessRuleError:
@@ -292,7 +313,10 @@ class ProjectService:
         self.projects.save(project)
         self.db.commit()
         self.db.expire_all()
-        refreshed = self.projects.get_by_id(project_id)
+        refreshed = self.projects.get_for_workspace(
+            project_id=project_id,
+            workspace_id=workspace.id,
+        )
         if refreshed is None:
             raise NotFoundError("Project not found.")
         return refreshed

@@ -32,7 +32,9 @@ def test_admin_can_login_and_list_users(client: TestClient) -> None:
     response = client.get("/api/v1/admin/users", headers=_headers(admin_token))
 
     assert response.status_code == 200, response.text
-    emails = {item["email"] for item in response.json()}
+    users = response.json()
+    assert all("password_hash" not in item for item in users)
+    emails = {item["email"] for item in users}
     assert "admin@example.com" in emails
     assert "user@example.com" in emails
 

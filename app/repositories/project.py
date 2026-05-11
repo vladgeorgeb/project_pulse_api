@@ -38,6 +38,20 @@ class ProjectRepository:
         )
         return self.db.execute(stmt).unique().scalar_one_or_none()
 
+    def get_for_workspace(
+        self,
+        *,
+        project_id: int,
+        workspace_id: int,
+    ) -> Project | None:
+        stmt = (
+            select(Project)
+            .options(joinedload(Project.tasks))
+            .where(Project.id == project_id, Project.workspace_id == workspace_id)
+            .execution_options(populate_existing=True)
+        )
+        return self.db.execute(stmt).unique().scalar_one_or_none()
+
     def list_for_workspace(
         self,
         *,

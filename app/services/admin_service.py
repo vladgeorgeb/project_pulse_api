@@ -23,6 +23,7 @@ from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.project import MONTHLY_AMOUNT_REQUIRED_MESSAGE
+from app.services.registration_service import validate_password_strength
 
 
 def _billing_status_for_payment_status(payment_status: str) -> str:
@@ -75,6 +76,7 @@ class AdminService:
         normalized_email = email.strip().lower()
         if self.users.get_by_email(normalized_email) is not None:
             raise ConflictError("A user with this email already exists.")
+        validate_password_strength(password)
         user = self.users.add(
             email=normalized_email,
             password_hash=hash_password(password),
@@ -100,6 +102,7 @@ class AdminService:
                 raise ConflictError("A user with this email already exists.")
             user.email = normalized_email
         if password is not None:
+            validate_password_strength(password)
             user.password_hash = hash_password(password)
         if is_admin is not None:
             user.is_admin = is_admin

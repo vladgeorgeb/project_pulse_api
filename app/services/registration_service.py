@@ -13,6 +13,19 @@ from app.models.user import User
 from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository
 
+MIN_PASSWORD_LENGTH = 8
+
+
+def validate_password_strength(password: str) -> None:
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise ValidationError("Password must be at least 8 characters long.")
+    if password.strip() != password:
+        raise ValidationError("Password must not start or end with whitespace.")
+    if not any(character.isalpha() for character in password):
+        raise ValidationError("Password must include at least one letter.")
+    if not any(character.isdigit() for character in password):
+        raise ValidationError("Password must include at least one number.")
+
 
 class RegistrationService:
     __slots__ = ("db", "users", "workspaces")
@@ -28,6 +41,7 @@ class RegistrationService:
             raise ValidationError("Email is required.")
         if not password:
             raise ValidationError("Password is required.")
+        validate_password_strength(password)
 
         existing = self.users.get_by_email(normalized_email)
         if existing is not None:

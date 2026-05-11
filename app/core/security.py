@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -44,9 +45,12 @@ def verify_password(password: str, stored_hash: str) -> bool:
     if algorithm != PASSWORD_HASH_NAME:
         return False
 
-    iterations = int(iterations_str)
-    salt = base64.urlsafe_b64decode(salt_b64.encode("ascii"))
-    expected = base64.urlsafe_b64decode(digest_b64.encode("ascii"))
+    try:
+        iterations = int(iterations_str)
+        salt = base64.urlsafe_b64decode(salt_b64.encode("ascii"))
+        expected = base64.urlsafe_b64decode(digest_b64.encode("ascii"))
+    except (binascii.Error, UnicodeEncodeError, ValueError):
+        return False
 
     actual = hashlib.pbkdf2_hmac(
         TOKEN_SIGN_DIGEST,
@@ -72,42 +76,74 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
         if expires_delta is not None
         else timedelta(minutes=settings.access_token_expire_minutes)
     )
+    header = {
+        "alg": settings.jwt_algorithm,
+        "typ": "JWT",
+    }
     payload = {
         "sub": subject,
         "exp": int(expire_at.timestamp()),
     }
+    header_bytes = json.dumps(
+        header,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
     payload_bytes = json.dumps(
         payload,
         separators=(",", ":"),
         sort_keys=True,
     ).encode("utf-8")
+    header_part = _b64url_encode(header_bytes)
     payload_part = _b64url_encode(payload_bytes)
+    signing_input = f"{header_part}.{payload_part}"
     signature = hmac.new(
         settings.secret_key.encode("utf-8"),
-        payload_part.encode("ascii"),
+        signing_input.encode("ascii"),
         hashlib.sha256,
     ).digest()
     signature_part = _b64url_encode(signature)
-    return f"{payload_part}{TOKEN_SEPARATOR}{signature_part}"
+    return f"{signing_input}{TOKEN_SEPARATOR}{signature_part}"
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
     try:
-        payload_part, signature_part = token.split(".", 1)
+        header_part, payload_part, signature_part = token.split(".", 2)
     except ValueError as exc:
         raise ValueError("Invalid token format.") from exc
 
+    signing_input = f"{header_part}.{payload_part}"
     expected_signature = hmac.new(
         settings.secret_key.encode("utf-8"),
-        payload_part.encode("ascii"),
+        signing_input.encode("ascii"),
         hashlib.sha256,
     ).digest()
 
-    provided_signature = _b64url_decode(signature_part)
+    try:
+        provided_signature = _b64url_decode(signature_part)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("Invalid token signature.") from exc
+
     if not hmac.compare_digest(expected_signature, provided_signature):
         raise ValueError("Invalid token signature.")
 
-    payload = json.loads(_b64url_decode(payload_part).decode("utf-8"))
+    try:
+        header = json.loads(_b64url_decode(header_part).decode("utf-8"))
+        payload = json.loads(_b64url_decode(payload_part).decode("utf-8"))
+    except (
+        binascii.Error,
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        ValueError,
+    ) as exc:
+        raise ValueError("Invalid token payload.") from exc
+
+    if not isinstance(header, dict):
+        raise ValueError("Invalid token header.")
+    if header.get("alg") != settings.jwt_algorithm or header.get("typ") != "JWT":
+        raise ValueError("Invalid token header.")
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid token payload.")
 
     exp = payload.get("exp")
     if not isinstance(exp, int):

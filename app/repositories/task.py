@@ -6,6 +6,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.domain.enums import TaskStatus
+from app.models.project import Project
 from app.models.task import Task
 
 
@@ -47,6 +48,14 @@ class TaskRepository:
 
     def get_by_id(self, task_id: int) -> Task | None:
         stmt = select(Task).where(Task.id == task_id)
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def get_for_workspace(self, *, task_id: int, workspace_id: int) -> Task | None:
+        stmt = (
+            select(Task)
+            .join(Project, Task.project_id == Project.id)
+            .where(Task.id == task_id, Project.workspace_id == workspace_id)
+        )
         return self.db.execute(stmt).scalar_one_or_none()
 
     def save(self, task: Task) -> Task:
