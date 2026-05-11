@@ -5,9 +5,9 @@ need a practical place to manage client projects, tasks, capacity, and monthly
 billing status.
 
 The backend provides authentication, workspace management, project and task
-workflows, dashboard summaries, and admin APIs. The frontend is a Vite + React
-dashboard that consumes those endpoints and gives the project a usable operating
-surface.
+workflows, dashboard summaries, user feedback capture, and admin APIs. The
+frontend is a Vite + React dashboard that consumes those endpoints and gives
+the project a usable operating surface.
 
 ## Features
 
@@ -79,6 +79,12 @@ health:
 Admin users can manage users, workspaces, projects, and tasks through
 `/api/v1/admin/*` endpoints.
 
+### Feedback
+
+Authenticated users can submit categorized feedback from the dashboard. Admin
+users can review submitted feedback, including category, message, page URL,
+user agent, status, and creation time.
+
 ## Tech Stack
 
 - Python 3.11+
@@ -103,6 +109,7 @@ app/
       admin.py
       auth.py
       dashboard.py
+      feedback.py
       projects.py
       workspaces.py
   core/
@@ -117,6 +124,7 @@ app/
     project_rules.py
   models/
     base.py
+    feedback.py
     project.py
     task.py
     user.py
@@ -130,6 +138,7 @@ app/
     admin.py
     auth.py
     dashboard.py
+    feedback.py
     project.py
     workspace.py
   services/
@@ -137,6 +146,7 @@ app/
     auth_service.py
     bootstrap_service.py
     dashboard_service.py
+    feedback_service.py
     project_service.py
     registration_service.py
     task_service.py
@@ -456,6 +466,20 @@ GET /api/v1/dashboard/summary
 Authorization: Bearer <access_token>
 ```
 
+### Send Feedback
+
+```http
+POST /api/v1/feedback
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "category": "idea",
+  "message": "Add a compact monthly billing view.",
+  "page_url": "http://localhost:5173"
+}
+```
+
 ## Admin Access
 
 An admin user is created on application startup if it does not already exist.
@@ -478,6 +502,7 @@ Examples:
 ```text
 GET    /api/v1/admin/users
 GET    /api/v1/admin/workspaces
+GET    /api/v1/admin/feedback
 POST   /api/v1/admin/projects
 POST   /api/v1/admin/tasks
 PUT    /api/v1/admin/projects/{project_id}

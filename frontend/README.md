@@ -1,6 +1,7 @@
 # Project Pulse Dashboard
 
-React + TypeScript dashboard for the Project Pulse API.
+React + TypeScript dashboard for the Project Pulse API, including project/task
+management, workspace settings, dashboard metrics, and in-app feedback capture.
 
 ## Run locally
 
