@@ -12,6 +12,7 @@ from app.domain.constants import (
 from app.models.user import User
 from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository
+from app.services.email_verification_service import EmailVerificationService
 
 MIN_PASSWORD_LENGTH = 8
 
@@ -28,12 +29,13 @@ def validate_password_strength(password: str) -> None:
 
 
 class RegistrationService:
-    __slots__ = ("db", "users", "workspaces")
+    __slots__ = ("db", "email_verification", "users", "workspaces")
 
     def __init__(self, db: Session) -> None:
         self.db = db
         self.users = UserRepository(db)
         self.workspaces = WorkspaceRepository(db)
+        self.email_verification = EmailVerificationService(db)
 
     def register_user(self, *, email: str, password: str) -> User:
         normalized_email = email.strip().lower()
@@ -56,6 +58,10 @@ class RegistrationService:
             name=DEFAULT_WORKSPACE_NAME,
             company_name=DEFAULT_COMPANY_NAME,
             monthly_capacity_hours=DEFAULT_MONTHLY_CAPACITY_HOURS,
+        )
+        self.email_verification.issue_verification_token(
+            user_id=user.id,
+            email=user.email,
         )
 
         self.db.commit()

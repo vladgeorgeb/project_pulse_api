@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
@@ -31,6 +32,11 @@ def get_current_user(
     user = UserRepository(db).get_by_id(user_id)
     if user is None:
         raise credentials_error
+    if get_settings().require_verified_email and not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address must be verified.",
+        )
     return user
 
 

@@ -23,6 +23,7 @@ from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.project import MONTHLY_AMOUNT_REQUIRED_MESSAGE
+from app.services.auth_token_service import utc_now_naive
 from app.services.registration_service import validate_password_strength
 
 
@@ -81,6 +82,8 @@ class AdminService:
             email=normalized_email,
             password_hash=hash_password(password),
             is_admin=is_admin,
+            email_verified=True,
+            email_verified_at=utc_now_naive(),
         )
         self.db.commit()
         self.db.refresh(user)
@@ -101,6 +104,8 @@ class AdminService:
             if existing is not None and existing.id != user.id:
                 raise ConflictError("A user with this email already exists.")
             user.email = normalized_email
+            user.email_verified = True
+            user.email_verified_at = utc_now_naive()
         if password is not None:
             validate_password_strength(password)
             user.password_hash = hash_password(password)

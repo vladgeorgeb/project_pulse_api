@@ -28,6 +28,8 @@ class AdminUserResponse(BaseModel):
     id: int
     email: EmailStr
     is_admin: bool
+    email_verified: bool
+    email_verified_at: datetime | None
 
 
 class AdminUserCreateRequest(BaseModel):

@@ -44,6 +44,8 @@ class AccountService:
                 id=hydrated_user.id,
                 email=hydrated_user.email,
                 is_admin=hydrated_user.is_admin,
+                email_verified=hydrated_user.email_verified,
+                email_verified_at=hydrated_user.email_verified_at,
             ),
             business_profile=(
                 AccountExportBusinessProfile(

@@ -117,6 +117,19 @@ class AuthRateLimiter:
                     self._settings.login_rate_limit_window_seconds,
                 ),
             )
+        if action == "password_reset":
+            return (
+                RateLimitRule(
+                    "ip",
+                    self._settings.login_rate_limit_ip_attempts,
+                    self._settings.login_rate_limit_window_seconds,
+                ),
+                RateLimitRule(
+                    "identifier",
+                    self._settings.login_rate_limit_email_attempts,
+                    self._settings.login_rate_limit_window_seconds,
+                ),
+            )
         if action == "register":
             return (
                 RateLimitRule(
