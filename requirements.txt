@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+email-validator
+httpx
+python-multipart
+pytest
+black
+isort
+flake8

@@ -1,0 +1,19 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+extend-exclude = '''
+/(
+  \.git
+  | \.venv
+  | __pycache__
+  | data
+  | frontend/node_modules
+  | frontend/dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+py_version = 311
+skip_gitignore = false

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Local databases
+*.db
+*.sqlite3
+/data/
+
+# Test artifacts
+tests/data/*.db
+!tests/data/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
