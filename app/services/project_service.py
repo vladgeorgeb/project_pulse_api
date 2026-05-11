@@ -14,7 +14,7 @@ from app.domain.enums import BillingStatus, ContractType, PaymentStatus, Project
 from app.domain.project_rules import validate_project_completion
 from app.models.project import Project
 from app.models.user import User
-from app.repositories.project import ProjectRepository
+from app.repositories.project import PaginatedProjects, ProjectRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.project import MONTHLY_AMOUNT_REQUIRED_MESSAGE
 
@@ -82,6 +82,44 @@ class ProjectService:
             due_after=due_after,
             overdue_only=overdue_only,
             include_archived=include_archived,
+        )
+
+    def paginate_projects_for_user(
+        self,
+        *,
+        user: User,
+        status: str | None = None,
+        priority: str | None = None,
+        client_name: str | None = None,
+        search: str | None = None,
+        min_budget_cents: int | None = None,
+        max_budget_cents: int | None = None,
+        due_before: date | None = None,
+        due_after: date | None = None,
+        overdue_only: bool = False,
+        include_archived: bool = False,
+        page: int = 1,
+        page_size: int = 20,
+        sort_by: str = "deadline",
+        sort_dir: str = "asc",
+    ) -> PaginatedProjects:
+        workspace = self._workspace_for_user(user)
+        return self.projects.paginate_for_workspace(
+            workspace_id=workspace.id,
+            status=status,
+            priority=priority,
+            client_name=client_name,
+            search=search,
+            min_budget_cents=min_budget_cents,
+            max_budget_cents=max_budget_cents,
+            due_before=due_before,
+            due_after=due_after,
+            overdue_only=overdue_only,
+            include_archived=include_archived,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
         )
 
     def get_project_for_user(self, *, user: User, project_id: int) -> Project:

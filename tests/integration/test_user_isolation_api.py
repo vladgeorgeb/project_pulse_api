@@ -50,7 +50,7 @@ def test_user_owned_projects_tasks_and_dashboard_are_isolated(
 
     first_list = client.get("/api/v1/projects", headers=first_headers)
     assert first_list.status_code == 200, first_list.text
-    first_titles = {project["title"] for project in first_list.json()}
+    first_titles = {project["title"] for project in first_list.json()["items"]}
     assert first_titles == {"First private project"}
 
     assert (

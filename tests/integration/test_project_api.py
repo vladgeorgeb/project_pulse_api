@@ -16,6 +16,18 @@ def _headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _create_project(
+    client: TestClient,
+    token: str,
+    title: str,
+    **overrides: object,
+) -> dict:
+    payload = {"title": title, "client_name": title, **overrides}
+    response = client.post("/api/v1/projects", json=payload, headers=_headers(token))
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def test_user_can_create_project_and_tasks(client: TestClient) -> None:
     token = _register(client)
 
@@ -180,7 +192,7 @@ def test_project_filters_and_dashboard_summary(client: TestClient) -> None:
         headers=headers,
     )
     assert filter_response.status_code == 200, filter_response.text
-    projects = filter_response.json()
+    projects = filter_response.json()["items"]
     assert len(projects) == 1
     assert projects[0]["title"] == "Internal API Cleanup"
 
@@ -349,3 +361,143 @@ def test_user_cannot_access_another_users_project(client: TestClient) -> None:
     )
 
     assert response.status_code == 404
+
+
+def test_project_list_default_pagination(client: TestClient) -> None:
+    token = _register(client)
+
+    for index in range(25):
+        _create_project(client, token, f"Project {index:02d}")
+
+    response = client.get("/api/v1/projects", headers=_headers(token))
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert len(payload["items"]) == 20
+    assert payload["total"] == 25
+    assert payload["page"] == 1
+    assert payload["page_size"] == 20
+    assert payload["total_pages"] == 2
+
+
+def test_project_list_defaults_to_priority_then_deadline(client: TestClient) -> None:
+    token = _register(client)
+    _create_project(
+        client,
+        token,
+        "Invoice Workflow Automation",
+        priority="medium",
+        deadline="2026-05-23",
+    )
+    _create_project(
+        client,
+        token,
+        "Monthly Backend Retainer",
+        priority="high",
+        deadline="2026-06-08",
+    )
+    _create_project(
+        client,
+        token,
+        "Client CRM Integration",
+        priority="medium",
+        deadline="2026-07-01",
+    )
+
+    response = client.get("/api/v1/projects", headers=_headers(token))
+
+    assert response.status_code == 200, response.text
+    assert [project["title"] for project in response.json()["items"]] == [
+        "Monthly Backend Retainer",
+        "Invoice Workflow Automation",
+        "Client CRM Integration",
+    ]
+
+
+def test_project_list_custom_page_and_page_size(client: TestClient) -> None:
+    token = _register(client)
+
+    for index in range(7):
+        _create_project(client, token, f"Project {index:02d}", deadline="2026-06-01")
+
+    response = client.get(
+        "/api/v1/projects",
+        params={"page": 2, "page_size": 3, "sort_by": "title", "sort_dir": "asc"},
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert [project["title"] for project in payload["items"]] == [
+        "Project 03",
+        "Project 04",
+        "Project 05",
+    ]
+    assert payload["total"] == 7
+    assert payload["page"] == 2
+    assert payload["page_size"] == 3
+    assert payload["total_pages"] == 3
+
+
+def test_project_list_sorting_asc_and_desc(client: TestClient) -> None:
+    token = _register(client)
+    _create_project(client, token, "Bravo", budget_cents=200)
+    _create_project(client, token, "Alpha", budget_cents=100)
+    _create_project(client, token, "Charlie", budget_cents=300)
+
+    asc_response = client.get(
+        "/api/v1/projects",
+        params={"sort_by": "title", "sort_dir": "asc"},
+        headers=_headers(token),
+    )
+    desc_response = client.get(
+        "/api/v1/projects",
+        params={"sort_by": "title", "sort_dir": "desc"},
+        headers=_headers(token),
+    )
+
+    assert asc_response.status_code == 200, asc_response.text
+    assert desc_response.status_code == 200, desc_response.text
+    assert [project["title"] for project in asc_response.json()["items"]] == [
+        "Alpha",
+        "Bravo",
+        "Charlie",
+    ]
+    assert [project["title"] for project in desc_response.json()["items"]] == [
+        "Charlie",
+        "Bravo",
+        "Alpha",
+    ]
+
+
+def test_project_list_rejects_invalid_sort_by(client: TestClient) -> None:
+    token = _register(client)
+    _create_project(client, token, "Private project")
+
+    response = client.get(
+        "/api/v1/projects",
+        params={"sort_by": "workspace_id;drop table projects"},
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 422
+
+
+def test_project_list_pagination_preserves_user_isolation(client: TestClient) -> None:
+    first_token = _register(client, "first-list@example.com")
+    second_token = _register(client, "second-list@example.com")
+    _create_project(client, first_token, "First private project")
+    _create_project(client, second_token, "Second private project")
+
+    response = client.get(
+        "/api/v1/projects",
+        params={"page": 1, "page_size": 100},
+        headers=_headers(first_token),
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["total"] == 1
+    assert [project["title"] for project in payload["items"]] == [
+        "First private project"
+    ]

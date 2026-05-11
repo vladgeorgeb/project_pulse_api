@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import type {
   ContractType,
   PaymentStatus,
@@ -95,6 +95,30 @@ function paymentStatusClass(project: Project): string {
 
 function hasOpenTasks(project: Project): boolean {
   return project.tasks.some((task) => task.status !== "done");
+}
+
+function estimateProjectCardHeight(project: Project): number {
+  const descriptionLines = Math.ceil((project.description?.length ?? 0) / 80);
+  const billingNotesLines = Math.ceil((project.billing_notes?.length ?? 0) / 80);
+  const taskHeight = project.tasks.reduce((total, task) => {
+    const taskDescriptionLines = Math.ceil((task.description?.length ?? 0) / 72);
+    return total + 86 + taskDescriptionLines * 18;
+  }, 0);
+
+  return 300 + descriptionLines * 22 + billingNotesLines * 22 + taskHeight;
+}
+
+function distributeProjects(projects: Project[]): Project[][] {
+  const columns: Project[][] = [[], []];
+  const columnHeights = [0, 0];
+
+  projects.forEach((project) => {
+    const columnIndex = columnHeights[0] <= columnHeights[1] ? 0 : 1;
+    columns[columnIndex].push(project);
+    columnHeights[columnIndex] += estimateProjectCardHeight(project);
+  });
+
+  return columns;
 }
 
 function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFormProps) {
@@ -312,112 +336,120 @@ export default function ProjectBoard({
   onDeleteProject,
 }: ProjectBoardProps) {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
+  const projectColumns = useMemo(() => distributeProjects(projects), [projects]);
 
   return (
     <section className="project-board">
-      {projects.map((project) => {
-        const blockedCompletion = hasOpenTasks(project);
-        const isEditingProject = editingProjectId === project.id;
-        const showContractPaymentInfo = hasContractPaymentInfo(project);
-        const monthlyBillingAmount = formatBillingAmount(project.monthly_amount ?? project.monthly_rate, project.currency);
+      {projectColumns.map((column, columnIndex) => (
+        <div className="project-board-column" key={columnIndex}>
+          {column.map((project) => {
+            const blockedCompletion = hasOpenTasks(project);
+            const isEditingProject = editingProjectId === project.id;
+            const showContractPaymentInfo = hasContractPaymentInfo(project);
+            const monthlyBillingAmount = formatBillingAmount(
+              project.monthly_amount ?? project.monthly_rate,
+              project.currency,
+            );
 
-        return (
-          <article className="project-card" key={project.id}>
-            <div className="project-card-header">
-              <div>
-                <div className="project-meta-row">
-                  <span className={classNames("status-pill", project.status)}>{project.status}</span>
-                  <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
-                  {showContractPaymentInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
-                  {showContractPaymentInfo ? (
-                    <span className={classNames("payment-pill", paymentStatusClass(project))}>
-                      {optionLabel(project.payment_status)}
-                    </span>
-                  ) : null}
-                  {project.archived ? <span className="status-pill archived">archived</span> : null}
+            return (
+              <article className="project-card" key={project.id}>
+                <div className="project-card-header">
+                  <div>
+                    <div className="project-meta-row">
+                      <span className={classNames("status-pill", project.status)}>{project.status}</span>
+                      <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
+                      {showContractPaymentInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
+                      {showContractPaymentInfo ? (
+                        <span className={classNames("payment-pill", paymentStatusClass(project))}>
+                          {optionLabel(project.payment_status)}
+                        </span>
+                      ) : null}
+                      {project.archived ? <span className="status-pill archived">archived</span> : null}
+                    </div>
+                    <h3>{project.title}</h3>
+                    <p>{project.client_name}</p>
+                  </div>
+
+                  <div className="project-values">
+                    <strong>{centsToUsd(project.budget_cents)}</strong>
+                    <span>{centsToUsd(project.hourly_rate_cents)}/h</span>
+                  </div>
                 </div>
-                <h3>{project.title}</h3>
-                <p>{project.client_name}</p>
-              </div>
 
-              <div className="project-values">
-                <strong>{centsToUsd(project.budget_cents)}</strong>
-                <span>{centsToUsd(project.hourly_rate_cents)}/h</span>
-              </div>
-            </div>
+                {project.description ? <p className="project-description">{project.description}</p> : null}
 
-            {project.description ? <p className="project-description">{project.description}</p> : null}
+                <div className="project-stats-row">
+                  <span>Deadline: {formatDate(project.deadline)}</span>
+                  <span>Estimated: {project.estimated_hours.toFixed(1)}h</span>
+                  <span>Actual: {project.actual_hours.toFixed(1)}h</span>
+                  {isMonthlyContract(project.contract_type) && monthlyBillingAmount ? <span>Monthly: {monthlyBillingAmount}</span> : null}
+                  {isMonthlyContract(project.contract_type) && project.next_payment_due_date ? (
+                    <span>Next payment: {formatDate(project.next_payment_due_date)}</span>
+                  ) : null}
+                </div>
 
-            <div className="project-stats-row">
-              <span>Deadline: {formatDate(project.deadline)}</span>
-              <span>Estimated: {project.estimated_hours.toFixed(1)}h</span>
-              <span>Actual: {project.actual_hours.toFixed(1)}h</span>
-              {isMonthlyContract(project.contract_type) && monthlyBillingAmount ? <span>Monthly: {monthlyBillingAmount}</span> : null}
-              {isMonthlyContract(project.contract_type) && project.next_payment_due_date ? (
-                <span>Next payment: {formatDate(project.next_payment_due_date)}</span>
-              ) : null}
-            </div>
+                {project.billing_notes ? <p className="project-description">Billing: {project.billing_notes}</p> : null}
 
-            {project.billing_notes ? <p className="project-description">Billing: {project.billing_notes}</p> : null}
+                <div className="progress-block">
+                  <div className="progress-label">
+                    <span>Progress</span>
+                    <strong>{project.progress_percent}%</strong>
+                  </div>
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: `${project.progress_percent}%` }} />
+                  </div>
+                </div>
 
-            <div className="progress-block">
-              <div className="progress-label">
-                <span>Progress</span>
-                <strong>{project.progress_percent}%</strong>
-              </div>
-              <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${project.progress_percent}%` }} />
-              </div>
-            </div>
+                {isEditingProject ? (
+                  <ProjectEditForm
+                    project={project}
+                    disabled={disabled}
+                    onSave={onUpdateProject}
+                    onCancel={() => setEditingProjectId(null)}
+                  />
+                ) : null}
 
-            {isEditingProject ? (
-              <ProjectEditForm
-                project={project}
-                disabled={disabled}
-                onSave={onUpdateProject}
-                onCancel={() => setEditingProjectId(null)}
-              />
-            ) : null}
+                <TaskList
+                  projectId={project.id}
+                  tasks={project.tasks}
+                  disabled={disabled}
+                  onCreateTask={onCreateTask}
+                  onUpdateTask={onUpdateTask}
+                  onUpdateTaskStatus={onUpdateTaskStatus}
+                  onCompleteTask={onCompleteTask}
+                  onDeleteTask={onDeleteTask}
+                />
 
-            <TaskList
-              projectId={project.id}
-              tasks={project.tasks}
-              disabled={disabled}
-              onCreateTask={onCreateTask}
-              onUpdateTask={onUpdateTask}
-              onUpdateTaskStatus={onUpdateTaskStatus}
-              onCompleteTask={onCompleteTask}
-              onDeleteTask={onDeleteTask}
-            />
-
-            <div className="project-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={disabled}
-                onClick={() => setEditingProjectId((current) => (current === project.id ? null : project.id))}
-              >
-                {isEditingProject ? "Close edit" : "Edit project"}
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={disabled || project.status === "completed" || blockedCompletion}
-                title={blockedCompletion ? "Complete all tasks before completing the project" : undefined}
-                onClick={() => onCompleteProject(project.id)}
-              >
-                Complete project
-              </button>
-              <button type="button" className="ghost-button" disabled={disabled} onClick={() => onArchiveProject(project)}>
-                {project.archived ? "Unarchive" : "Archive"}
-              </button>
-              <button type="button" className="danger-button" disabled={disabled} onClick={() => onDeleteProject(project.id)}>
-                Delete
-              </button>
-            </div>
-          </article>
-        );
-      })}
+                <div className="project-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={disabled}
+                    onClick={() => setEditingProjectId((current) => (current === project.id ? null : project.id))}
+                  >
+                    {isEditingProject ? "Close edit" : "Edit project"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={disabled || project.status === "completed" || blockedCompletion}
+                    title={blockedCompletion ? "Complete all tasks before completing the project" : undefined}
+                    onClick={() => onCompleteProject(project.id)}
+                  >
+                    Complete project
+                  </button>
+                  <button type="button" className="ghost-button" disabled={disabled} onClick={() => onArchiveProject(project)}>
+                    {project.archived ? "Unarchive" : "Archive"}
+                  </button>
+                  <button type="button" className="danger-button" disabled={disabled} onClick={() => onDeleteProject(project.id)}>
+                    Delete
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ))}
     </section>
   );
 }

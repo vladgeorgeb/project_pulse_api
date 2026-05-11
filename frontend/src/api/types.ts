@@ -6,6 +6,20 @@ export type BillingStatus = "not_billable" | "unpaid" | "partially_paid" | "paid
 export type BillingCycle = "monthly";
 export type PaymentStatus = "not_started" | "pending" | "paid" | "overdue";
 export type FeedbackCategory = "bug" | "idea" | "question" | "other";
+export type ProjectSortBy =
+  | "id"
+  | "title"
+  | "client_name"
+  | "status"
+  | "priority"
+  | "budget_cents"
+  | "hourly_rate_cents"
+  | "deadline"
+  | "created_at"
+  | "updated_at"
+  | "payment_status"
+  | "next_payment_due_date";
+export type SortDir = "asc" | "desc";
 
 export interface TokenResponse {
   access_token: string;
@@ -105,6 +119,18 @@ export interface ProjectFilters {
   due_before?: string;
   overdue_only?: boolean;
   include_archived?: boolean;
+  page?: number;
+  page_size?: number;
+  sort_by?: ProjectSortBy;
+  sort_dir?: SortDir;
+}
+
+export interface ProjectListResponse {
+  items: Project[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface ProjectCreatePayload {

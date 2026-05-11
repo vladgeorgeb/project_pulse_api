@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
+from math import ceil
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError as PydanticValidationError
@@ -19,6 +21,7 @@ from app.models.user import User
 from app.schemas.project import (
     ProjectActionResponse,
     ProjectCreateRequest,
+    ProjectListResponse,
     ProjectQueryParams,
     ProjectResponse,
     ProjectUpdateRequest,
@@ -33,7 +36,7 @@ from app.services.task_service import TaskService
 router = APIRouter(tags=["projects"])
 
 
-@router.get("/projects", response_model=list[ProjectResponse])
+@router.get("/projects", response_model=ProjectListResponse)
 def list_projects(
     status_filter: ProjectStatus | None = Query(default=None, alias="status"),
     priority: Priority | None = Query(default=None),
@@ -45,9 +48,26 @@ def list_projects(
     due_after: date | None = Query(default=None),
     overdue_only: bool = Query(default=False),
     include_archived: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    sort_by: Literal[
+        "id",
+        "title",
+        "client_name",
+        "status",
+        "priority",
+        "budget_cents",
+        "hourly_rate_cents",
+        "deadline",
+        "created_at",
+        "updated_at",
+        "payment_status",
+        "next_payment_due_date",
+    ] = Query(default="priority"),
+    sort_dir: Literal["asc", "desc"] = Query(default="asc"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[ProjectResponse]:
+) -> ProjectListResponse:
     try:
         params = ProjectQueryParams(
             status=status_filter,
@@ -60,12 +80,16 @@ def list_projects(
             due_after=due_after,
             overdue_only=overdue_only,
             include_archived=include_archived,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
         )
     except PydanticValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
 
     service = ProjectService(db)
-    projects = service.list_projects_for_user(
+    project_page = service.paginate_projects_for_user(
         user=current_user,
         status=params.status.value if params.status is not None else None,
         priority=params.priority.value if params.priority is not None else None,
@@ -77,8 +101,20 @@ def list_projects(
         due_after=params.due_after,
         overdue_only=params.overdue_only,
         include_archived=params.include_archived,
+        page=params.page,
+        page_size=params.page_size,
+        sort_by=params.sort_by,
+        sort_dir=params.sort_dir,
     )
-    return [to_project_response(project) for project in projects]
+    return ProjectListResponse(
+        items=[to_project_response(project) for project in project_page.items],
+        total=project_page.total,
+        page=params.page,
+        page_size=params.page_size,
+        total_pages=(
+            ceil(project_page.total / params.page_size) if project_page.total > 0 else 0
+        ),
+    )
 
 
 @router.post(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -233,6 +234,23 @@ class ProjectQueryParams(BaseModel):
     due_after: date | None = None
     overdue_only: bool = False
     include_archived: bool = False
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
+    sort_by: Literal[
+        "id",
+        "title",
+        "client_name",
+        "status",
+        "priority",
+        "budget_cents",
+        "hourly_rate_cents",
+        "deadline",
+        "created_at",
+        "updated_at",
+        "payment_status",
+        "next_payment_due_date",
+    ] = "priority"
+    sort_dir: Literal["asc", "desc"] = "asc"
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "ProjectQueryParams":
@@ -249,6 +267,14 @@ class ProjectQueryParams(BaseModel):
         ):
             raise ValueError("due_after cannot be later than due_before.")
         return self
+
+
+class ProjectListResponse(BaseModel):
+    items: list[ProjectResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 class ProjectActionResponse(BaseModel):

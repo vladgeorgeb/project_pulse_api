@@ -5,6 +5,7 @@ import type {
   Project,
   ProjectCreatePayload,
   ProjectFilters,
+  ProjectListResponse,
   ProjectUpdatePayload,
   Task,
   TaskCreatePayload,
@@ -126,7 +127,7 @@ export const api = {
     return request<DashboardSummary>("/dashboard/summary", token);
   },
 
-  async listProjects(token: string, filters: ProjectFilters = {}): Promise<Project[]> {
+  async listProjects(token: string, filters: ProjectFilters = {}): Promise<ProjectListResponse> {
     const query = toQueryString({
       status: filters.status,
       priority: filters.priority,
@@ -138,8 +139,12 @@ export const api = {
       due_before: filters.due_before,
       overdue_only: filters.overdue_only,
       include_archived: filters.include_archived,
+      page: filters.page,
+      page_size: filters.page_size,
+      sort_by: filters.sort_by,
+      sort_dir: filters.sort_dir,
     });
-    return request<Project[]>(`/projects${query}`, token);
+    return request<ProjectListResponse>(`/projects${query}`, token);
   },
 
   async createProject(token: string, payload: ProjectCreatePayload): Promise<Project> {

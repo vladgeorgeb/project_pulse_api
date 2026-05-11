@@ -3,9 +3,9 @@ import { api, ApiError } from "./api/client";
 import type {
   DashboardSummary,
   FeedbackCategory,
-  Priority,
   Project,
   ProjectFilters,
+  ProjectListResponse,
   ProjectUpdatePayload,
   TaskStatus,
   TaskUpdatePayload,
@@ -26,13 +26,6 @@ const THEME_STORAGE_KEY = "project-pulse-theme";
 
 type Theme = "light" | "dark";
 
-const priorityRank: Record<Priority, number> = {
-  urgent: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-};
-
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "light" || stored === "dark") return stored;
@@ -40,29 +33,18 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function sortProjectsByPriority(projects: Project[]): Project[] {
-  return [...projects].sort((left, right) => {
-    const priorityDiff = priorityRank[left.priority] - priorityRank[right.priority];
-    if (priorityDiff !== 0) return priorityDiff;
-
-    const leftDeadline = left.deadline ? Date.parse(left.deadline) : Number.POSITIVE_INFINITY;
-    const rightDeadline = right.deadline ? Date.parse(right.deadline) : Number.POSITIVE_INFINITY;
-    if (leftDeadline !== rightDeadline) return leftDeadline - rightDeadline;
-
-    return left.id - right.id;
-  });
-}
-
 interface DashboardState {
   workspace: Workspace | null;
   summary: DashboardSummary | null;
   projects: Project[];
+  projectPage: ProjectListResponse | null;
 }
 
 const initialDashboardState: DashboardState = {
   workspace: null,
   summary: null,
   projects: [],
+  projectPage: null,
 };
 
 function getErrorMessage(error: unknown): string {
@@ -76,7 +58,13 @@ function getErrorMessage(error: unknown): string {
 
 export default function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
-  const [filters, setFilters] = useState<ProjectFilters>({ include_archived: false });
+  const [filters, setFilters] = useState<ProjectFilters>({
+    include_archived: false,
+    page: 1,
+    page_size: 20,
+    sort_by: "priority",
+    sort_dir: "asc",
+  });
   const [state, setState] = useState<DashboardState>(initialDashboardState);
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
@@ -88,20 +76,18 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   const isAuthenticated = Boolean(token);
-  const sortedProjects = useMemo(() => sortProjectsByPriority(state.projects), [state.projects]);
-
   const refresh = useCallback(async () => {
     if (!token) return;
 
     setIsLoading(true);
     setError(null);
     try {
-      const [workspace, summary, projects] = await Promise.all([
+      const [workspace, summary, projectPage] = await Promise.all([
         api.getWorkspace(token),
         api.getDashboardSummary(token),
         api.listProjects(token, filters),
       ]);
-      setState({ workspace, summary, projects });
+      setState({ workspace, summary, projects: projectPage.items, projectPage });
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -158,8 +144,28 @@ export default function App() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
     setState(initialDashboardState);
-    setFilters({ include_archived: false });
+    setFilters({
+      include_archived: false,
+      page: 1,
+      page_size: 20,
+      sort_by: "priority",
+      sort_dir: "asc",
+    });
     setError(null);
+  }
+
+  function updateFilters(nextFilters: ProjectFilters) {
+    setFilters({
+      ...nextFilters,
+      page: nextFilters.page ?? 1,
+      page_size: nextFilters.page_size ?? 20,
+      sort_by: nextFilters.sort_by ?? "priority",
+      sort_dir: nextFilters.sort_dir ?? "asc",
+    });
+  }
+
+  function setProjectPage(page: number) {
+    setFilters((current) => ({ ...current, page }));
   }
 
   async function sendFeedback(payload: { category: FeedbackCategory; message: string }) {
@@ -321,41 +327,78 @@ export default function App() {
         />
       </section>
 
-      <ProjectFiltersPanel filters={filters} onChange={setFilters} disabled={isLoading || isMutating} />
+      <ProjectFiltersPanel filters={filters} onChange={updateFilters} disabled={isLoading || isMutating} />
 
-      {sortedProjects.length === 0 && !isLoading ? (
+      {state.projects.length === 0 && !isLoading ? (
         <EmptyState onCreateDemoData={createDemoData} disabled={isMutating} />
       ) : (
-        <ProjectBoard
-          projects={sortedProjects}
-          disabled={isMutating}
-          onCreateTask={(projectId, payload) => mutate(() => api.createTask(authToken, projectId, payload))}
-          onUpdateProject={(projectId, payload: ProjectUpdatePayload) =>
-            mutate(() => api.updateProject(authToken, projectId, payload), "Project updated.")
-          }
-          onUpdateTask={(taskId, payload: TaskUpdatePayload) =>
-            mutate(() => api.updateTask(authToken, taskId, payload), "Task updated.")
-          }
-          onUpdateTaskStatus={(taskId, status: TaskStatus) =>
-            mutate(() => api.updateTask(authToken, taskId, { status }))
-          }
-          onCompleteTask={(taskId, actualMinutes) =>
-            mutate(() => api.completeTask(authToken, taskId, actualMinutes), "Task completed.")
-          }
-          onDeleteTask={(taskId) => mutate(() => api.deleteTask(authToken, taskId))}
-          onCompleteProject={(projectId) =>
-            mutate(() => api.completeProject(authToken, projectId), "Project completed.")
-          }
-          onArchiveProject={(project) =>
-            mutate(() =>
-              api.updateProject(authToken, project.id, {
-                archived: !project.archived,
-                status: project.archived ? "active" : "archived",
-              }),
-            )
-          }
-          onDeleteProject={(projectId) => mutate(() => api.deleteProject(authToken, projectId))}
-        />
+        <>
+          {state.projectPage ? (
+            <div className="pagination-bar">
+              <span>
+                Showing {(state.projectPage.page - 1) * state.projectPage.page_size + 1}-
+                {Math.min(state.projectPage.page * state.projectPage.page_size, state.projectPage.total)} of{" "}
+                {state.projectPage.total}
+              </span>
+              <div className="pagination-actions">
+                <button
+                  type="button"
+                  className="small-secondary-button"
+                  disabled={isLoading || isMutating || state.projectPage.page <= 1}
+                  onClick={() => setProjectPage(state.projectPage!.page - 1)}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {state.projectPage.page} of {Math.max(state.projectPage.total_pages, 1)}
+                </span>
+                <button
+                  type="button"
+                  className="small-secondary-button"
+                  disabled={
+                    isLoading ||
+                    isMutating ||
+                    state.projectPage.total_pages === 0 ||
+                    state.projectPage.page >= state.projectPage.total_pages
+                  }
+                  onClick={() => setProjectPage(state.projectPage!.page + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <ProjectBoard
+            projects={state.projects}
+            disabled={isMutating}
+            onCreateTask={(projectId, payload) => mutate(() => api.createTask(authToken, projectId, payload))}
+            onUpdateProject={(projectId, payload: ProjectUpdatePayload) =>
+              mutate(() => api.updateProject(authToken, projectId, payload), "Project updated.")
+            }
+            onUpdateTask={(taskId, payload: TaskUpdatePayload) =>
+              mutate(() => api.updateTask(authToken, taskId, payload), "Task updated.")
+            }
+            onUpdateTaskStatus={(taskId, status: TaskStatus) =>
+              mutate(() => api.updateTask(authToken, taskId, { status }))
+            }
+            onCompleteTask={(taskId, actualMinutes) =>
+              mutate(() => api.completeTask(authToken, taskId, actualMinutes), "Task completed.")
+            }
+            onDeleteTask={(taskId) => mutate(() => api.deleteTask(authToken, taskId))}
+            onCompleteProject={(projectId) =>
+              mutate(() => api.completeProject(authToken, projectId), "Project completed.")
+            }
+            onArchiveProject={(project) =>
+              mutate(() =>
+                api.updateProject(authToken, project.id, {
+                  archived: !project.archived,
+                  status: project.archived ? "active" : "archived",
+                }),
+              )
+            }
+            onDeleteProject={(projectId) => mutate(() => api.deleteProject(authToken, projectId))}
+          />
+        </>
       )}
     </main>
   );

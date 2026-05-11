@@ -34,8 +34,9 @@ Projects track the operational and commercial state of client work:
 - monthly billing fields: amount, currency, next payment due date, payment
   status, and paid timestamp
 
-Project lists support filtering by status, priority, client name, search text,
-budget range, due-date range, archived state, and overdue state.
+Project lists support pagination, allowlisted sorting, and filtering by status,
+priority, client name, search text, budget range, due-date range, archived
+state, and overdue state.
 
 ### Tasks and Delivery Rules
 
@@ -400,9 +401,37 @@ This succeeds only when all project tasks are done.
 ### List Projects With Filters
 
 ```http
-GET /api/v1/projects?status=active&priority=high&client_name=acme
+GET /api/v1/projects?status=active&priority=high&client_name=acme&page=1&page_size=20&sort_by=priority&sort_dir=asc
 Authorization: Bearer <access_token>
 ```
+
+Project list responses are paginated:
+
+```json
+{
+  "items": [],
+  "total": 0,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 0
+}
+```
+
+Supported list query parameters:
+
+- `page`: page number, default `1`
+- `page_size`: page size, default `20`, maximum `100`
+- `sort_by`: allowlisted sort field, default `priority`
+- `sort_dir`: `asc` or `desc`, default `asc`
+- filters: `status`, `priority`, `client_name`, `search`,
+  `min_budget_cents`, `max_budget_cents`, `due_after`, `due_before`,
+  `overdue_only`, `include_archived`
+
+Supported `sort_by` values are `id`, `title`, `client_name`, `status`,
+`priority`, `budget_cents`, `hourly_rate_cents`, `deadline`, `created_at`,
+`updated_at`, `payment_status`, and `next_payment_due_date`. Priority sorting
+uses the project priority rank `urgent`, `high`, `medium`, `low`, with deadline
+as a secondary sort.
 
 ### Dashboard Summary
 
@@ -601,7 +630,6 @@ Potential next steps:
 
 - invoice entities and invoice generation
 - richer payment history
-- pagination and sorting for project lists
 - account deletion/export flows
 - rate limiting for login/register
 - role-based permissions beyond `is_admin`
