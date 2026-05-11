@@ -13,8 +13,10 @@ import type {
 } from "./api/types";
 import AuthPage from "./components/AuthPage";
 import DashboardHeader from "./components/DashboardHeader";
+import EmailConfirmationPage from "./components/EmailConfirmationPage";
 import EmptyState from "./components/EmptyState";
 import FeedbackModal from "./components/FeedbackModal";
+import PasswordResetPage from "./components/PasswordResetPage";
 import ProjectBoard from "./components/ProjectBoard";
 import ProjectComposer from "./components/ProjectComposer";
 import ProjectFiltersPanel from "./components/ProjectFiltersPanel";
@@ -57,6 +59,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export default function App() {
+  const path = window.location.pathname;
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
   const [filters, setFilters] = useState<ProjectFilters>({
     include_archived: false,
@@ -76,6 +79,13 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   const isAuthenticated = Boolean(token);
+
+  const clearAuthState = useCallback(() => {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    setToken(null);
+    setState(initialDashboardState);
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!token) return;
 
@@ -91,15 +101,13 @@ export default function App() {
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
-      if (err instanceof ApiError && err.status === 401) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        setToken(null);
-        setState(initialDashboardState);
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        clearAuthState();
       }
     } finally {
       setIsLoading(false);
     }
-  }, [filters, token]);
+  }, [clearAuthState, filters, token]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -277,6 +285,18 @@ export default function App() {
         }),
       ]);
     }, "Demo data created. The dashboard was refreshed.");
+  }
+
+  if (path === "/reset-password") {
+    return <PasswordResetPage />;
+  }
+
+  if (path === "/confirm-email") {
+    return <EmailConfirmationPage />;
+  }
+
+  if (path === "/forgot-password") {
+    return <AuthPage initialMode="forgot" onAuthenticated={authActions.onAuthenticated} />;
   }
 
   if (!isAuthenticated || token === null) {

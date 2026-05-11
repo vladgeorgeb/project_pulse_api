@@ -26,6 +26,17 @@ export interface TokenResponse {
   token_type: "bearer";
 }
 
+export interface EmailVerificationRequiredResponse {
+  email_verification_required: true;
+  message: string;
+}
+
+export type RegisterResponse = TokenResponse | EmailVerificationRequiredResponse;
+
+export interface MessageResponse {
+  message: string;
+}
+
 export interface DashboardSummary {
   workspace_id: number;
   total_projects: number;

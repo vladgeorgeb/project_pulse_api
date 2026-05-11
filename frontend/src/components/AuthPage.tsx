@@ -1,10 +1,11 @@
 import { FormEvent, useState } from "react";
 import { api, ApiError } from "../api/client";
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "forgot";
 
 interface AuthPageProps {
   onAuthenticated: (token: string) => void;
+  initialMode?: AuthMode;
 }
 
 function getAuthError(error: unknown): string {
@@ -16,24 +17,45 @@ function getAuthError(error: unknown): string {
   return "Authentication failed.";
 }
 
-export default function AuthPage({ onAuthenticated }: AuthPageProps) {
-  const [mode, setMode] = useState<AuthMode>("login");
+export default function AuthPage({ onAuthenticated, initialMode = "login" }: AuthPageProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState("demo@example.com");
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function switchMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setError(null);
+    setSuccess(null);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
     setIsSubmitting(true);
 
     try {
-      const token =
-        mode === "login"
-          ? await api.login(email, password)
-          : await api.register(email, password);
-      onAuthenticated(token.access_token);
+      if (mode === "forgot") {
+        const response = await api.requestPasswordReset(email);
+        setSuccess(response.message);
+        return;
+      }
+
+      if (mode === "login") {
+        const token = await api.login(email, password);
+        onAuthenticated(token.access_token);
+        return;
+      }
+
+      const registration = await api.register(email, password);
+      if ("access_token" in registration) {
+        onAuthenticated(registration.access_token);
+      } else {
+        setSuccess(registration.message);
+      }
     } catch (err) {
       setError(getAuthError(err));
     } finally {
@@ -64,14 +86,14 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
           <button
             type="button"
             className={mode === "login" ? "active" : ""}
-            onClick={() => setMode("login")}
+            onClick={() => switchMode("login")}
           >
             Login
           </button>
           <button
             type="button"
             className={mode === "register" ? "active" : ""}
-            onClick={() => setMode("register")}
+            onClick={() => switchMode("register")}
           >
             Register
           </button>
@@ -89,23 +111,45 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
             />
           </label>
 
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              minLength={8}
-              required
-            />
-          </label>
+          {mode !== "forgot" ? (
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                minLength={8}
+                required
+              />
+            </label>
+          ) : null}
 
           {error ? <div className="form-error">{error}</div> : null}
+          {success ? <div className="form-success">{success}</div> : null}
 
           <button type="submit" className="primary-button" disabled={isSubmitting}>
-            {isSubmitting ? "Working..." : mode === "login" ? "Login" : "Create account"}
+            {isSubmitting
+              ? "Working..."
+              : mode === "login"
+                ? "Login"
+                : mode === "register"
+                  ? "Create account"
+                  : "Send reset link"}
           </button>
+
+          <div className="auth-links">
+            {mode === "login" ? (
+              <a className="text-link" href="/forgot-password">
+                Forgot password?
+              </a>
+            ) : null}
+            {mode === "forgot" ? (
+              <a className="text-link" href="/">
+                Back to login
+              </a>
+            ) : null}
+          </div>
         </form>
       </section>
     </main>

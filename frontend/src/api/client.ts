@@ -2,11 +2,13 @@ import type {
   DashboardSummary,
   FeedbackCreatePayload,
   FeedbackResponse,
+  MessageResponse,
   Project,
   ProjectCreatePayload,
   ProjectFilters,
   ProjectListResponse,
   ProjectUpdatePayload,
+  RegisterResponse,
   Task,
   TaskCreatePayload,
   TaskUpdatePayload,
@@ -93,8 +95,8 @@ function toQueryString(params: Record<string, string | number | boolean | undefi
 }
 
 export const api = {
-  async register(email: string, password: string): Promise<TokenResponse> {
-    return request<TokenResponse>("/auth/register", null, {
+  async register(email: string, password: string): Promise<RegisterResponse> {
+    return request<RegisterResponse>("/auth/register", null, {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
@@ -106,6 +108,27 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
+    });
+  },
+
+  async requestPasswordReset(email: string): Promise<MessageResponse> {
+    return request<MessageResponse>("/auth/password-reset/request", null, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<MessageResponse> {
+    return request<MessageResponse>("/auth/password-reset/confirm", null, {
+      method: "POST",
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+  },
+
+  async confirmEmail(token: string): Promise<MessageResponse> {
+    return request<MessageResponse>("/auth/email/confirm", null, {
+      method: "POST",
+      body: JSON.stringify({ token }),
     });
   },
 
