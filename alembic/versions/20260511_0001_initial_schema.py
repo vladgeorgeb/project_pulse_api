@@ -24,10 +24,52 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("password_hash", sa.String(length=512), nullable=False),
         sa.Column("is_admin", sa.Boolean(), server_default=sa.false(), nullable=False),
+        sa.Column(
+            "email_verified", sa.Boolean(), server_default=sa.false(), nullable=False
+        ),
+        sa.Column("email_verified_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
+
+    op.create_table(
+        "auth_tokens",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("purpose", sa.String(length=64), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("used_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_auth_tokens_expires_at"),
+        "auth_tokens",
+        ["expires_at"],
+        unique=False,
+    )
+    op.create_index(op.f("ix_auth_tokens_id"), "auth_tokens", ["id"], unique=False)
+    op.create_index(
+        op.f("ix_auth_tokens_purpose"),
+        "auth_tokens",
+        ["purpose"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_auth_tokens_token_hash"),
+        "auth_tokens",
+        ["token_hash"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_auth_tokens_user_id"),
+        "auth_tokens",
+        ["user_id"],
+        unique=False,
+    )
 
     op.create_table(
         "feedback",
@@ -256,6 +298,12 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_feedback_created_at"), table_name="feedback")
     op.drop_index(op.f("ix_feedback_category"), table_name="feedback")
     op.drop_table("feedback")
+    op.drop_index(op.f("ix_auth_tokens_user_id"), table_name="auth_tokens")
+    op.drop_index(op.f("ix_auth_tokens_token_hash"), table_name="auth_tokens")
+    op.drop_index(op.f("ix_auth_tokens_purpose"), table_name="auth_tokens")
+    op.drop_index(op.f("ix_auth_tokens_id"), table_name="auth_tokens")
+    op.drop_index(op.f("ix_auth_tokens_expires_at"), table_name="auth_tokens")
+    op.drop_table("auth_tokens")
     op.drop_index(op.f("ix_users_id"), table_name="users")
     op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_table("users")

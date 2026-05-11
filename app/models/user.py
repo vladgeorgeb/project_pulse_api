@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, String, false
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -20,6 +22,13 @@ class User(Base):
         default=False,
         server_default=false(),
     )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+    )
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     workspace = relationship(
         "Workspace",
@@ -28,3 +37,8 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     feedback = relationship("Feedback", back_populates="user")
+    auth_tokens = relationship(
+        "AuthToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

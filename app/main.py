@@ -17,7 +17,7 @@ from app.api.v1.workspaces import router as workspaces_router
 from app.core.config import get_settings
 from app.core.database import SessionLocal, engine
 from app.core.migrations import ensure_project_billing_columns
-from app.models import Feedback, Project, Task, User, Workspace  # noqa: F401
+from app.models import AuthToken, Feedback, Project, Task, User, Workspace  # noqa: F401
 from app.models.base import Base
 from app.services.bootstrap_service import BootstrapService
 

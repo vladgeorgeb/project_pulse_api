@@ -19,6 +19,7 @@ PASSWORD_SALT_BYTES = 16
 PASSWORD_HASH_ITERATIONS = 200_000
 TOKEN_SIGN_DIGEST = "sha256"
 TOKEN_SEPARATOR = "."
+AUTH_TOKEN_BYTES = 32
 
 
 def hash_password(password: str) -> str:
@@ -59,6 +60,18 @@ def verify_password(password: str, stored_hash: str) -> bool:
         iterations,
     )
     return hmac.compare_digest(actual, expected)
+
+
+def generate_secure_token() -> str:
+    return secrets.token_urlsafe(AUTH_TOKEN_BYTES)
+
+
+def hash_auth_token(token: str, *, purpose: str) -> str:
+    return hmac.new(
+        settings.secret_key.encode("utf-8"),
+        f"{purpose}:{token}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def _b64url_encode(data: bytes) -> str:

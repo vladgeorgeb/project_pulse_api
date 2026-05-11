@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -46,11 +48,15 @@ class UserRepository:
         email: str,
         password_hash: str,
         is_admin: bool = False,
+        email_verified: bool = False,
+        email_verified_at: datetime | None = None,
     ) -> User:
         user = User(
             email=email,
             password_hash=password_hash,
             is_admin=is_admin,
+            email_verified=email_verified,
+            email_verified_at=email_verified_at,
         )
         self.db.add(user)
         self.db.flush()
