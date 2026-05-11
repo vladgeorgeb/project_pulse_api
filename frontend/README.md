@@ -1,7 +1,8 @@
 # Project Pulse Dashboard
 
 React + TypeScript dashboard for the Project Pulse API, including project/task
-management, workspace settings, dashboard metrics, and in-app feedback capture.
+management, workspace settings, dashboard metrics, auth recovery pages, email
+confirmation, and in-app feedback capture.
 
 ## Run locally
 
@@ -24,6 +25,14 @@ Open:
 
 ```text
 http://localhost:5173
+```
+
+Auth recovery routes are handled by the Vite app:
+
+```text
+http://localhost:5173/forgot-password
+http://localhost:5173/reset-password?token=<token>
+http://localhost:5173/confirm-email?token=<token>
 ```
 
 The frontend expects the API at `http://127.0.0.1:8000/api/v1` by default. Override it with:

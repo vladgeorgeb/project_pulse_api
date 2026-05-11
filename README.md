@@ -16,6 +16,9 @@ the project a usable operating surface.
 - User registration and OAuth2 password login
 - Bearer-token authentication with signed expiring tokens
 - Password hashing with PBKDF2-HMAC-SHA256
+- Email verification tokens created during registration
+- Password reset request and confirmation workflows
+- Hashed, expiring, single-use auth workflow tokens
 - JSON account export for the authenticated user's own data
 - Self-service account deletion with password confirmation
 - One workspace per user, created automatically at registration
@@ -125,6 +128,7 @@ app/
     enums.py
     project_rules.py
   models/
+    auth_token.py
     base.py
     feedback.py
     project.py
@@ -132,6 +136,7 @@ app/
     user.py
     workspace.py
   repositories/
+    auth_token.py
     project.py
     task.py
     user.py
@@ -144,10 +149,13 @@ app/
     project.py
     workspace.py
   services/
+    account_recovery_service.py
     admin_service.py
     auth_service.py
     bootstrap_service.py
     dashboard_service.py
+    email_service.py
+    email_verification_service.py
     feedback_service.py
     project_service.py
     registration_service.py
@@ -284,6 +292,19 @@ LOGIN_RATE_LIMIT_WINDOW_SECONDS=60
 REGISTER_RATE_LIMIT_IP_ATTEMPTS=3
 REGISTER_RATE_LIMIT_EMAIL_ATTEMPTS=3
 REGISTER_RATE_LIMIT_WINDOW_SECONDS=60
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES=30
+EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES=1440
+REQUIRE_VERIFIED_EMAIL=false
+FRONTEND_BASE_URL=http://localhost:5173
+EMAIL_BACKEND=console
+EMAIL_FROM_EMAIL=noreply@example.com
+EMAIL_FROM_NAME=Project Pulse
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_USE_TLS=true
+SMTP_USE_SSL=false
 ```
 
 Production validation fails startup when:
@@ -295,12 +316,22 @@ Production validation fails startup when:
 - `AUTO_CREATE_TABLES=true`.
 - `ADMIN_PASSWORD` uses the local default.
 - `AUTH_RATE_LIMIT_ENABLED=true` without `AUTH_RATE_LIMIT_BACKEND=redis`.
+- `EMAIL_BACKEND` is not `smtp`, or SMTP host/from settings are missing.
 
-Auth rate limiting applies to login and register requests before credential
-checks. Login is limited by client IP and submitted email/username; registration
-is limited by client IP and submitted email. Local/demo environments can use the
-in-memory backend, but production should set `AUTH_RATE_LIMIT_BACKEND=redis` and
-`REDIS_URL` so limits are shared across app processes.
+Auth rate limiting applies to login, password reset request, and register
+requests before credential checks. Login and password reset requests are limited
+by client IP and submitted email/username; registration is limited by client IP
+and submitted email. Local/demo environments can use the in-memory backend, but
+production should set `AUTH_RATE_LIMIT_BACKEND=redis` and `REDIS_URL` so limits
+are shared across app processes.
+
+Email delivery is selected with `EMAIL_BACKEND`. Local, development, and test
+environments default to `console`, which stores messages in the local in-memory
+outbox and logs only message metadata. Production requires `EMAIL_BACKEND=smtp`,
+`SMTP_HOST`, and `EMAIL_FROM_EMAIL`; set `SMTP_USERNAME` and `SMTP_PASSWORD` only
+when your SMTP provider requires authentication. Password reset links use
+`/reset-password?token=...`; email confirmation links use
+`/confirm-email?token=...`.
 
 ## Frontend Environment Variables
 
@@ -343,6 +374,45 @@ Use the returned token in authenticated requests:
 
 ```http
 Authorization: Bearer <access_token>
+```
+
+### Request Password Reset
+
+This response is intentionally the same whether or not the email exists.
+
+```http
+POST /api/v1/auth/password-reset/request
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+
+### Confirm Password Reset
+
+```http
+POST /api/v1/auth/password-reset/confirm
+Content-Type: application/json
+
+{
+  "token": "<token-from-email>",
+  "new_password": "newstrongpass123"
+}
+```
+
+### Confirm Email
+
+Registration creates an email verification token and sends a confirmation link.
+Only hashed tokens are stored.
+
+```http
+POST /api/v1/auth/email/confirm
+Content-Type: application/json
+
+{
+  "token": "<token-from-email>"
+}
 ```
 
 ### Export My Account
@@ -667,6 +737,19 @@ LOGIN_RATE_LIMIT_WINDOW_SECONDS=60
 REGISTER_RATE_LIMIT_IP_ATTEMPTS=3
 REGISTER_RATE_LIMIT_EMAIL_ATTEMPTS=3
 REGISTER_RATE_LIMIT_WINDOW_SECONDS=60
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES=30
+EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES=1440
+REQUIRE_VERIFIED_EMAIL=true
+FRONTEND_BASE_URL=https://your-vercel-app.vercel.app
+EMAIL_BACKEND=smtp
+EMAIL_FROM_EMAIL=noreply@example.com
+EMAIL_FROM_NAME=Project Pulse
+SMTP_HOST=<smtp-host>
+SMTP_PORT=587
+SMTP_USERNAME=<smtp-username-if-needed>
+SMTP_PASSWORD=<smtp-password-if-needed>
+SMTP_USE_TLS=true
+SMTP_USE_SSL=false
 ```
 
 Railway may provide a `postgresql://` or `postgres://` URL. The backend normalizes
@@ -718,6 +801,11 @@ variables.
   `feedback.user_id` to `NULL`.
 - Cross-user project/task access returns `404` to avoid confirming that another
   user's record exists.
+- Password reset and email confirmation tokens are random, purpose-scoped,
+  stored only as HMAC-SHA256 hashes, expire, and are marked used after the first
+  successful confirmation.
+- Password reset request responses are generic, so they do not reveal whether an
+  email address is registered.
 - Tokens are bearer tokens with an expiry and are stored by the frontend in
   `localStorage`. This is simple for a portfolio SaaS demo, but it is more
   exposed to XSS than an HTTP-only cookie design.
