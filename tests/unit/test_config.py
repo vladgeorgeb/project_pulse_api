@@ -13,6 +13,9 @@ def _set_valid_production_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ADMIN_PASSWORD", "strong-admin-pass123")
     monkeypatch.setenv("AUTH_RATE_LIMIT_BACKEND", "redis")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("EMAIL_BACKEND", "smtp")
+    monkeypatch.setenv("EMAIL_FROM_EMAIL", "noreply@example.com")
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
 
 
 def test_production_rejects_insecure_secret(
@@ -93,4 +96,22 @@ def test_redis_rate_limit_backend_requires_redis_url(
     monkeypatch.delenv("REDIS_URL", raising=False)
 
     with pytest.raises(RuntimeError, match="REDIS_URL"):
+        Settings.from_env()
+
+
+def test_production_requires_smtp_email_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_valid_production_env(monkeypatch)
+    monkeypatch.setenv("EMAIL_BACKEND", "console")
+
+    with pytest.raises(RuntimeError, match="EMAIL_BACKEND=smtp"):
+        Settings.from_env()
+
+
+def test_smtp_email_backend_requires_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("EMAIL_BACKEND", "smtp")
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+
+    with pytest.raises(RuntimeError, match="SMTP_HOST"):
         Settings.from_env()

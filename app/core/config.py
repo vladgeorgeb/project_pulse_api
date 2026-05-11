@@ -24,6 +24,7 @@ INSECURE_SECRET_KEYS = {
 }
 Environment = Literal["local", "development", "test", "production"]
 RateLimitBackend = Literal["memory", "redis"]
+EmailBackend = Literal["console", "smtp"]
 
 
 def _get_bool_env(name: str, default: bool) -> bool:
@@ -67,6 +68,19 @@ class Settings:
     register_rate_limit_ip_attempts: int
     register_rate_limit_email_attempts: int
     register_rate_limit_window_seconds: int
+    password_reset_token_expire_minutes: int
+    email_verification_token_expire_minutes: int
+    require_verified_email: bool
+    frontend_base_url: str
+    email_backend: EmailBackend
+    email_from_email: str
+    email_from_name: str
+    smtp_host: str | None
+    smtp_port: int
+    smtp_username: str | None
+    smtp_password: str | None
+    smtp_use_tls: bool
+    smtp_use_ssl: bool
 
     @property
     def is_production(self) -> bool:
@@ -89,6 +103,15 @@ class Settings:
         )
         if auth_rate_limit_backend not in {"memory", "redis"}:
             raise RuntimeError("AUTH_RATE_LIMIT_BACKEND must be one of: memory, redis.")
+        email_backend = (
+            os.getenv(
+                "EMAIL_BACKEND", "smtp" if environment == "production" else "console"
+            )
+            .strip()
+            .lower()
+        )
+        if email_backend not in {"console", "smtp"}:
+            raise RuntimeError("EMAIL_BACKEND must be one of: console, smtp.")
 
         database_url = os.getenv("DATABASE_URL", LOCAL_DATABASE_URL)
         cors_default = "http://localhost:5173,http://127.0.0.1:5173"
@@ -144,6 +167,26 @@ class Settings:
             register_rate_limit_window_seconds=int(
                 os.getenv("REGISTER_RATE_LIMIT_WINDOW_SECONDS", "60")
             ),
+            password_reset_token_expire_minutes=int(
+                os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", "30")
+            ),
+            email_verification_token_expire_minutes=int(
+                os.getenv("EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES", "1440")
+            ),
+            require_verified_email=_get_bool_env("REQUIRE_VERIFIED_EMAIL", False),
+            frontend_base_url=os.getenv(
+                "FRONTEND_BASE_URL",
+                "http://localhost:5173",
+            ).rstrip("/"),
+            email_backend=email_backend,  # type: ignore[arg-type]
+            email_from_email=os.getenv("EMAIL_FROM_EMAIL", "noreply@example.com"),
+            email_from_name=os.getenv("EMAIL_FROM_NAME", "Project Pulse"),
+            smtp_host=os.getenv("SMTP_HOST") or None,
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME") or None,
+            smtp_password=os.getenv("SMTP_PASSWORD") or None,
+            smtp_use_tls=_get_bool_env("SMTP_USE_TLS", True),
+            smtp_use_ssl=_get_bool_env("SMTP_USE_SSL", False),
         )
         settings.validate()
         return settings
@@ -176,10 +219,37 @@ class Settings:
             raise RuntimeError(
                 f"{invalid_rate_limit_names[0]} must be greater than zero."
             )
+        if self.password_reset_token_expire_minutes <= 0:
+            raise RuntimeError(
+                "PASSWORD_RESET_TOKEN_EXPIRE_MINUTES must be greater than zero."
+            )
+        if self.email_verification_token_expire_minutes <= 0:
+            raise RuntimeError(
+                "EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES must be greater than zero."
+            )
+        if not self.frontend_base_url:
+            raise RuntimeError("FRONTEND_BASE_URL must not be empty.")
+        if self.smtp_port <= 0:
+            raise RuntimeError("SMTP_PORT must be greater than zero.")
+        if self.smtp_use_tls and self.smtp_use_ssl:
+            raise RuntimeError("Only one of SMTP_USE_TLS or SMTP_USE_SSL can be true.")
+        if (self.smtp_username and not self.smtp_password) or (
+            self.smtp_password and not self.smtp_username
+        ):
+            raise RuntimeError(
+                "SMTP_USERNAME and SMTP_PASSWORD must be configured together."
+            )
         if self.auth_rate_limit_backend == "redis" and not self.redis_url:
             raise RuntimeError(
                 "REDIS_URL is required when AUTH_RATE_LIMIT_BACKEND=redis."
             )
+        if self.email_backend == "smtp":
+            if not self.smtp_host:
+                raise RuntimeError("SMTP_HOST is required when EMAIL_BACKEND=smtp.")
+            if not self.email_from_email:
+                raise RuntimeError(
+                    "EMAIL_FROM_EMAIL is required when EMAIL_BACKEND=smtp."
+                )
         if not self.cors_origins:
             raise RuntimeError("At least one CORS origin must be configured.")
         if self.is_production:
@@ -195,6 +265,8 @@ class Settings:
                 )
             if not os.getenv("DATABASE_URL"):
                 raise RuntimeError("DATABASE_URL is required in production.")
+            if self.email_backend != "smtp":
+                raise RuntimeError("EMAIL_BACKEND=smtp is required in production.")
             if self.database_url.startswith("sqlite"):
                 raise RuntimeError("SQLite is not allowed in production.")
             if "*" in self.cors_origins:
