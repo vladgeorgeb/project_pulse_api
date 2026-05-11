@@ -26,6 +26,7 @@ from app.core.rate_limit import auth_rate_limiter  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models.base import Base  # noqa: E402
 from app.services.bootstrap_service import BootstrapService  # noqa: E402
+from app.services.email_service import local_email_outbox  # noqa: E402
 
 engine = create_engine(
     TEST_DATABASE_URL,
@@ -44,6 +45,7 @@ TestingSessionLocal = sessionmaker(
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
     auth_rate_limiter.reset()
+    local_email_outbox.clear()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -69,4 +71,5 @@ def client() -> Generator[TestClient, None, None]:
 
     app.dependency_overrides.clear()
     auth_rate_limiter.reset()
+    local_email_outbox.clear()
     Base.metadata.drop_all(bind=engine)
