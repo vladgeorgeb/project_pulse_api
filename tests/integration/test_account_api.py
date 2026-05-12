@@ -91,7 +91,6 @@ def test_user_can_export_only_their_own_account_data(client: TestClient) -> None
     assert [project["title"] for project in export["projects"]] == ["Exported Retainer"]
     assert [task["title"] for task in export["tasks"]] == ["Export task"]
     assert len(export["billing"]["payment_records"]) == 0
-    assert export["billing"]["invoices"] == []
     assert "Other User Project" not in response.text
 
 

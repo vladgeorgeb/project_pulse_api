@@ -16,7 +16,6 @@ class PaymentRecord(Base):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(
         String(3), nullable=False, default="USD", server_default="USD"

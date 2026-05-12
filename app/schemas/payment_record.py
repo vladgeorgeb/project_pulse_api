@@ -19,7 +19,6 @@ class PaymentRecordFields(BaseModel):
     period_start: date | None = None
     period_end: date | None = None
     notes: str | None = Field(default=None, max_length=2_000)
-    invoice_id: int | None = Field(default=None, ge=1)
 
     @field_validator("currency", mode="before")
     @classmethod
@@ -57,7 +56,6 @@ class PaymentRecordUpdateRequest(BaseModel):
     period_start: date | None = None
     period_end: date | None = None
     notes: str | None = Field(default=None, max_length=2_000)
-    invoice_id: int | None = Field(default=None, ge=1)
 
     @field_validator("currency", mode="before")
     @classmethod
@@ -85,7 +83,6 @@ class PaymentRecordResponse(BaseModel):
 
     id: int
     project_id: int
-    invoice_id: int | None
     amount_cents: int
     currency: str
     status: PaymentRecordStatus

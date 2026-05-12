@@ -68,8 +68,7 @@ class AccountService:
                 payment_records=[
                     PaymentRecordResponse.model_validate(payment_record)
                     for payment_record in payment_records
-                ],
-                invoices=[],
+                ]
             ),
         )
 

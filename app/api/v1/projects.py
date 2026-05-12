@@ -214,7 +214,6 @@ def create_project_payment_record(
             period_start=payload.period_start,
             period_end=payload.period_end,
             notes=payload.notes,
-            invoice_id=payload.invoice_id,
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -278,8 +277,6 @@ def update_project_payment_record(
             period_end_provided="period_end" in payload.model_fields_set,
             notes=payload.notes,
             notes_provided="notes" in payload.model_fields_set,
-            invoice_id=payload.invoice_id,
-            invoice_id_provided="invoice_id" in payload.model_fields_set,
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -30,7 +29,6 @@ class AccountExportClient(BaseModel):
 
 class AccountExportBillingData(BaseModel):
     payment_records: list[PaymentRecordResponse] = Field(default_factory=list)
-    invoices: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AccountExportResponse(BaseModel):

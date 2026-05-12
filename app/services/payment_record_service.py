@@ -62,7 +62,6 @@ class PaymentRecordService:
         period_start: date | None,
         period_end: date | None,
         notes: str | None,
-        invoice_id: int | None,
     ) -> PaymentRecord:
         project = self._project_for_user(user=user, project_id=project_id)
         if (
@@ -88,7 +87,6 @@ class PaymentRecordService:
             period_start=period_start,
             period_end=period_end,
             notes=notes.strip() if notes else None,
-            invoice_id=invoice_id,
             created_at=now,
             updated_at=now,
         )
@@ -119,8 +117,6 @@ class PaymentRecordService:
         period_end_provided: bool,
         notes: str | None,
         notes_provided: bool,
-        invoice_id: int | None,
-        invoice_id_provided: bool,
     ) -> PaymentRecord:
         project = self._project_for_user(user=user, project_id=project_id)
         payment_record = self.payment_records.get_for_project(
@@ -158,8 +154,6 @@ class PaymentRecordService:
             payment_record.period_end = period_end
         if notes_provided:
             payment_record.notes = notes.strip() if notes else None
-        if invoice_id_provided:
-            payment_record.invoice_id = invoice_id
 
         if (
             payment_record.period_start is not None

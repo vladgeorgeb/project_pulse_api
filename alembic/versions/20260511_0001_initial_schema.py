@@ -246,7 +246,6 @@ def upgrade() -> None:
         "payment_records",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("project_id", sa.Integer(), nullable=False),
-        sa.Column("invoice_id", sa.Integer(), nullable=True),
         sa.Column("amount_cents", sa.Integer(), nullable=False),
         sa.Column(
             "currency", sa.String(length=3), server_default="USD", nullable=False
@@ -278,12 +277,6 @@ def upgrade() -> None:
         op.f("ix_payment_records_id"), "payment_records", ["id"], unique=False
     )
     op.create_index(
-        op.f("ix_payment_records_invoice_id"),
-        "payment_records",
-        ["invoice_id"],
-        unique=False,
-    )
-    op.create_index(
         op.f("ix_payment_records_project_id"),
         "payment_records",
         ["project_id"],
@@ -300,7 +293,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index(op.f("ix_payment_records_status"), table_name="payment_records")
     op.drop_index(op.f("ix_payment_records_project_id"), table_name="payment_records")
-    op.drop_index(op.f("ix_payment_records_invoice_id"), table_name="payment_records")
     op.drop_index(op.f("ix_payment_records_id"), table_name="payment_records")
     op.drop_index(op.f("ix_payment_records_due_date"), table_name="payment_records")
     op.drop_table("payment_records")

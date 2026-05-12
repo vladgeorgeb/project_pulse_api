@@ -62,7 +62,6 @@ export interface AccountExportResponse {
   tasks: Task[];
   billing: {
     payment_records: PaymentRecord[];
-    invoices: Array<Record<string, unknown>>;
   };
 }
 
@@ -124,7 +123,6 @@ export interface Task {
 export interface PaymentRecord {
   id: number;
   project_id: number;
-  invoice_id: number | null;
   amount_cents: number;
   currency: string;
   status: PaymentRecordStatus;
@@ -227,7 +225,6 @@ export interface PaymentRecordCreatePayload {
   period_start?: string | null;
   period_end?: string | null;
   notes?: string | null;
-  invoice_id?: number | null;
 }
 
 export interface PaymentRecordUpdatePayload extends Partial<PaymentRecordCreatePayload> {}
