@@ -12,30 +12,33 @@ class ProjectStatus(StrEnum):
 
 
 class ContractType(StrEnum):
-    FIXED_PRICE = "fixed_price"
     HOURLY = "hourly"
     MONTHLY_RETAINER = "monthly_retainer"
-    FULL_TIME_MONTHLY = "full_time_monthly"
-    INTERNAL = "internal"
+    FIXED_PRICE = "fixed_price"
+    NON_BILLABLE = "non_billable"
 
 
-class BillingCycle(StrEnum):
+class PaymentCadence(StrEnum):
+    WEEKLY = "weekly"
+    BIWEEKLY = "biweekly"
     MONTHLY = "monthly"
-
-
-class BillingStatus(StrEnum):
-    NOT_BILLABLE = "not_billable"
-    UNPAID = "unpaid"
-    PARTIALLY_PAID = "partially_paid"
-    PAID = "paid"
-    OVERDUE = "overdue"
+    MILESTONE = "milestone"
+    MANUAL = "manual"
+    NONE = "none"
 
 
 class PaymentRecordStatus(StrEnum):
     PENDING = "pending"
     PAID = "paid"
-    FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class PaymentMethod(StrEnum):
+    WIRE = "wire"
+    BANK_TRANSFER = "bank_transfer"
+    CARD = "card"
+    CASH = "cash"
+    OTHER = "other"
 
 
 class TaskStatus(StrEnum):

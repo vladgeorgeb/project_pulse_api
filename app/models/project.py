@@ -16,13 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.enums import (
-    BillingCycle,
-    BillingStatus,
-    ContractType,
-    Priority,
-    ProjectStatus,
-)
+from app.domain.enums import ContractType, PaymentCadence, Priority, ProjectStatus
 from app.models.base import Base
 
 
@@ -42,8 +36,6 @@ class Project(Base):
     priority: Mapped[str] = mapped_column(
         String(32), nullable=False, default=Priority.MEDIUM.value, index=True
     )
-    budget_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    hourly_rate_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     contract_type: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
@@ -51,26 +43,25 @@ class Project(Base):
         server_default=ContractType.FIXED_PRICE.value,
         index=True,
     )
-    billing_status: Mapped[str] = mapped_column(
-        String(32),
-        nullable=False,
-        default=BillingStatus.UNPAID.value,
-        server_default=BillingStatus.UNPAID.value,
-        index=True,
-    )
     billing_currency: Mapped[str] = mapped_column(
         String(3), nullable=False, default="USD", server_default="USD"
     )
-    billing_cycle: Mapped[str] = mapped_column(
+    hourly_rate_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expected_hours_per_week: Mapped[Decimal | None] = mapped_column(
+        Numeric(7, 2), nullable=True
+    )
+    monthly_rate_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fixed_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    estimated_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    deadline: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    payment_cadence: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
-        default=BillingCycle.MONTHLY.value,
-        server_default=BillingCycle.MONTHLY.value,
+        default=PaymentCadence.MANUAL.value,
+        server_default=PaymentCadence.MANUAL.value,
     )
-    agreed_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    monthly_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     billing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    deadline: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     archived: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false(), index=True
     )

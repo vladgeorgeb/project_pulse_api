@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.enums import PaymentRecordStatus
@@ -18,7 +17,7 @@ class PaymentRecord(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
-    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(
         String(3), nullable=False, default="USD", server_default="USD"
     )

@@ -121,18 +121,14 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("priority", sa.String(length=32), nullable=False),
-        sa.Column("budget_cents", sa.Integer(), nullable=False),
-        sa.Column("hourly_rate_cents", sa.Integer(), nullable=False),
+        sa.Column("hourly_rate_cents", sa.Integer(), nullable=True),
+        sa.Column("expected_hours_per_week", sa.Numeric(7, 2), nullable=True),
+        sa.Column("monthly_rate_cents", sa.Integer(), nullable=True),
+        sa.Column("fixed_price_cents", sa.Integer(), nullable=True),
         sa.Column(
             "contract_type",
             sa.String(length=32),
             server_default="fixed_price",
-            nullable=False,
-        ),
-        sa.Column(
-            "billing_status",
-            sa.String(length=32),
-            server_default="unpaid",
             nullable=False,
         ),
         sa.Column(
@@ -141,14 +137,14 @@ def upgrade() -> None:
             server_default="USD",
             nullable=False,
         ),
+        sa.Column("start_date", sa.Date(), nullable=True),
+        sa.Column("estimated_end_date", sa.Date(), nullable=True),
         sa.Column(
-            "billing_cycle",
+            "payment_cadence",
             sa.String(length=32),
-            server_default="monthly",
+            server_default="manual",
             nullable=False,
         ),
-        sa.Column("agreed_amount", sa.Numeric(12, 2), nullable=True),
-        sa.Column("monthly_rate", sa.Numeric(12, 2), nullable=True),
         sa.Column("billing_notes", sa.Text(), nullable=True),
         sa.Column("deadline", sa.Date(), nullable=True),
         sa.Column("archived", sa.Boolean(), server_default=sa.false(), nullable=False),
@@ -161,12 +157,6 @@ def upgrade() -> None:
         op.f("ix_projects_archived"),
         "projects",
         ["archived"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_projects_billing_status"),
-        "projects",
-        ["billing_status"],
         unique=False,
     )
     op.create_index(
@@ -257,7 +247,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("project_id", sa.Integer(), nullable=False),
         sa.Column("invoice_id", sa.Integer(), nullable=True),
-        sa.Column("amount", sa.Numeric(12, 2), nullable=False),
+        sa.Column("amount_cents", sa.Integer(), nullable=False),
         sa.Column(
             "currency", sa.String(length=3), server_default="USD", nullable=False
         ),
@@ -329,7 +319,6 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_projects_deadline"), table_name="projects")
     op.drop_index(op.f("ix_projects_contract_type"), table_name="projects")
     op.drop_index(op.f("ix_projects_client_name"), table_name="projects")
-    op.drop_index(op.f("ix_projects_billing_status"), table_name="projects")
     op.drop_index(op.f("ix_projects_archived"), table_name="projects")
     op.drop_table("projects")
     op.drop_index(op.f("ix_workspaces_user_id"), table_name="workspaces")

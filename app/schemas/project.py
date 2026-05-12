@@ -6,35 +6,15 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.domain.constants import MAX_PROJECT_BUDGET_CENTS, MAX_TASK_ESTIMATE_MINUTES
+from app.domain.constants import MAX_TASK_ESTIMATE_MINUTES
 from app.domain.enums import (
-    BillingCycle,
-    BillingStatus,
     ContractType,
-    PaymentRecordStatus,
+    PaymentCadence,
     Priority,
     ProjectStatus,
     TaskStatus,
 )
-
-SUPPORTED_PAYMENT_CURRENCIES = frozenset({"USD", "EUR", "GBP", "RON"})
-
-
-class ProjectBillingFields(BaseModel):
-    contract_type: ContractType = ContractType.FIXED_PRICE
-    billing_cycle: BillingCycle = BillingCycle.MONTHLY
-    billing_status: BillingStatus = BillingStatus.UNPAID
-    billing_currency: str = Field(default="USD", min_length=3, max_length=3)
-    agreed_amount: Decimal | None = Field(default=None, ge=0)
-    monthly_rate: Decimal | None = Field(default=None, ge=0)
-    billing_notes: str | None = Field(default=None, max_length=2_000)
-
-    @model_validator(mode="after")
-    def normalize_billing(self) -> "ProjectBillingFields":
-        self.billing_currency = self.billing_currency.upper()
-        if self.contract_type == ContractType.INTERNAL:
-            self.billing_status = BillingStatus.NOT_BILLABLE
-        return self
+from app.schemas.payment_record import PaymentRecordResponse
 
 
 class TaskResponse(BaseModel):
@@ -80,89 +60,56 @@ class TaskCompleteRequest(BaseModel):
     actual_minutes: int | None = Field(default=None, ge=0, le=MAX_TASK_ESTIMATE_MINUTES)
 
 
-class PaymentRecordFields(BaseModel):
-    amount: Decimal = Field(gt=0)
-    currency: str = Field(default="USD", min_length=3, max_length=3)
-    status: PaymentRecordStatus = PaymentRecordStatus.PENDING
-    method: str | None = Field(default=None, max_length=80)
-    paid_at: datetime | None = None
-    due_date: date | None = None
-    period_start: date | None = None
-    period_end: date | None = None
-    notes: str | None = Field(default=None, max_length=2_000)
-    invoice_id: int | None = Field(default=None, ge=1)
+class ProjectBillingFields(BaseModel):
+    contract_type: ContractType = ContractType.FIXED_PRICE
+    billing_currency: str = Field(default="USD", min_length=3, max_length=3)
+    hourly_rate_cents: int | None = Field(default=None, ge=1, le=1_000_000)
+    expected_hours_per_week: Decimal | None = Field(default=None, ge=0)
+    monthly_rate_cents: int | None = Field(default=None, ge=1, le=100_000_000)
+    fixed_price_cents: int | None = Field(default=None, ge=1, le=100_000_000)
+    start_date: date | None = None
+    estimated_end_date: date | None = None
+    payment_cadence: PaymentCadence = PaymentCadence.MANUAL
+    billing_notes: str | None = Field(default=None, max_length=2_000)
 
-    @field_validator("currency", mode="before")
+    @field_validator("billing_currency", mode="before")
     @classmethod
     def normalize_currency(cls, value: str) -> str:
         return str(value).strip().upper()
 
     @model_validator(mode="after")
-    def normalize_payment_record(self) -> "PaymentRecordFields":
-        if self.currency not in SUPPORTED_PAYMENT_CURRENCIES:
-            raise ValueError("currency must be one of USD, EUR, GBP, or RON.")
+    def validate_contract_fields(self) -> "ProjectBillingFields":
+        if self.contract_type == ContractType.HOURLY and self.hourly_rate_cents is None:
+            raise ValueError("hourly contracts require hourly_rate_cents.")
         if (
-            self.period_start is not None
-            and self.period_end is not None
-            and self.period_start > self.period_end
+            self.contract_type == ContractType.MONTHLY_RETAINER
+            and self.monthly_rate_cents is None
         ):
-            raise ValueError("period_start cannot be later than period_end.")
-        return self
-
-
-class PaymentRecordCreateRequest(PaymentRecordFields):
-    pass
-
-
-class PaymentRecordUpdateRequest(BaseModel):
-    amount: Decimal | None = Field(default=None, gt=0)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    status: PaymentRecordStatus | None = None
-    method: str | None = Field(default=None, max_length=80)
-    paid_at: datetime | None = None
-    due_date: date | None = None
-    period_start: date | None = None
-    period_end: date | None = None
-    notes: str | None = Field(default=None, max_length=2_000)
-    invoice_id: int | None = Field(default=None, ge=1)
-
-    @field_validator("currency", mode="before")
-    @classmethod
-    def normalize_currency(cls, value: str | None) -> str | None:
-        return str(value).strip().upper() if value is not None else None
-
-    @model_validator(mode="after")
-    def normalize_payment_record_update(self) -> "PaymentRecordUpdateRequest":
-        if self.currency is not None:
-            if self.currency not in SUPPORTED_PAYMENT_CURRENCIES:
-                raise ValueError("currency must be one of USD, EUR, GBP, or RON.")
+            raise ValueError("monthly_retainer contracts require monthly_rate_cents.")
         if (
-            self.period_start is not None
-            and self.period_end is not None
-            and self.period_start > self.period_end
+            self.contract_type == ContractType.FIXED_PRICE
+            and self.fixed_price_cents is None
         ):
-            raise ValueError("period_start cannot be later than period_end.")
+            raise ValueError("fixed_price contracts require fixed_price_cents.")
+        if (
+            self.contract_type == ContractType.NON_BILLABLE
+            and self.payment_cadence != PaymentCadence.NONE
+        ):
+            raise ValueError("non_billable contracts require payment_cadence 'none'.")
+        if (
+            self.contract_type != ContractType.NON_BILLABLE
+            and self.payment_cadence == PaymentCadence.NONE
+        ):
+            raise ValueError(
+                "payment_cadence 'none' is only valid for non_billable contracts."
+            )
+        if (
+            self.start_date is not None
+            and self.estimated_end_date is not None
+            and self.start_date > self.estimated_end_date
+        ):
+            raise ValueError("start_date cannot be later than estimated_end_date.")
         return self
-
-
-class PaymentRecordResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    project_id: int
-    invoice_id: int | None
-    amount: Decimal
-    currency: str
-    status: PaymentRecordStatus
-    is_overdue: bool
-    method: str | None
-    paid_at: datetime | None
-    due_date: date | None
-    period_start: date | None
-    period_end: date | None
-    notes: str | None
-    created_at: datetime
-    updated_at: datetime
 
 
 class ProjectCreateRequest(ProjectBillingFields):
@@ -171,8 +118,6 @@ class ProjectCreateRequest(ProjectBillingFields):
     description: str | None = Field(default=None, max_length=4_000)
     status: ProjectStatus = ProjectStatus.PLANNED
     priority: Priority = Priority.MEDIUM
-    budget_cents: int = Field(default=0, ge=0, le=MAX_PROJECT_BUDGET_CENTS)
-    hourly_rate_cents: int = Field(default=0, ge=0, le=1_000_000)
     deadline: date | None = None
 
 
@@ -182,25 +127,23 @@ class ProjectUpdateRequest(BaseModel):
     description: str | None = Field(default=None, max_length=4_000)
     status: ProjectStatus | None = None
     priority: Priority | None = None
-    budget_cents: int | None = Field(default=None, ge=0, le=MAX_PROJECT_BUDGET_CENTS)
-    hourly_rate_cents: int | None = Field(default=None, ge=0, le=1_000_000)
     contract_type: ContractType | None = None
-    billing_cycle: BillingCycle | None = None
-    billing_status: BillingStatus | None = None
     billing_currency: str | None = Field(default=None, min_length=3, max_length=3)
-    agreed_amount: Decimal | None = Field(default=None, ge=0)
-    monthly_rate: Decimal | None = Field(default=None, ge=0)
-    billing_notes: str | None = Field(default=None, max_length=2_000)
+    hourly_rate_cents: int | None = Field(default=None, ge=1, le=1_000_000)
+    expected_hours_per_week: Decimal | None = Field(default=None, ge=0)
+    monthly_rate_cents: int | None = Field(default=None, ge=1, le=100_000_000)
+    fixed_price_cents: int | None = Field(default=None, ge=1, le=100_000_000)
+    start_date: date | None = None
+    estimated_end_date: date | None = None
     deadline: date | None = None
+    payment_cadence: PaymentCadence | None = None
+    billing_notes: str | None = Field(default=None, max_length=2_000)
     archived: bool | None = None
 
-    @model_validator(mode="after")
-    def normalize_billing(self) -> "ProjectUpdateRequest":
-        if self.billing_currency is not None:
-            self.billing_currency = self.billing_currency.upper()
-        if self.contract_type == ContractType.INTERNAL:
-            self.billing_status = BillingStatus.NOT_BILLABLE
-        return self
+    @field_validator("billing_currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        return str(value).strip().upper() if value is not None else None
 
 
 class ProjectResponse(BaseModel):
@@ -213,22 +156,26 @@ class ProjectResponse(BaseModel):
     description: str | None
     status: ProjectStatus
     priority: Priority
-    budget_cents: int
-    hourly_rate_cents: int
     contract_type: ContractType
-    billing_cycle: BillingCycle
-    billing_status: BillingStatus
     billing_currency: str
-    agreed_amount: Decimal | None
-    monthly_rate: Decimal | None
-    billing_notes: str | None
+    hourly_rate_cents: int | None
+    expected_hours_per_week: Decimal | None
+    monthly_rate_cents: int | None
+    fixed_price_cents: int | None
+    start_date: date | None
+    estimated_end_date: date | None
     deadline: date | None
+    payment_cadence: PaymentCadence
+    billing_notes: str | None
     archived: bool
     created_at: datetime
     updated_at: datetime
     progress_percent: int
     estimated_hours: float
     actual_hours: float
+    expected_weekly_income_cents: int | None
+    expected_monthly_income_cents: int | None
+    expected_total_contract_value_cents: int | None
     payment_records: list[PaymentRecordResponse]
     tasks: list[TaskResponse]
 
@@ -238,8 +185,6 @@ class ProjectQueryParams(BaseModel):
     priority: Priority | None = None
     client_name: str | None = None
     search: str | None = None
-    min_budget_cents: int | None = Field(default=None, ge=0)
-    max_budget_cents: int | None = Field(default=None, ge=0)
     due_before: date | None = None
     due_after: date | None = None
     overdue_only: bool = False
@@ -252,8 +197,7 @@ class ProjectQueryParams(BaseModel):
         "client_name",
         "status",
         "priority",
-        "budget_cents",
-        "hourly_rate_cents",
+        "contract_type",
         "deadline",
         "created_at",
         "updated_at",
@@ -262,12 +206,6 @@ class ProjectQueryParams(BaseModel):
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "ProjectQueryParams":
-        if (
-            self.min_budget_cents is not None
-            and self.max_budget_cents is not None
-            and self.min_budget_cents > self.max_budget_cents
-        ):
-            raise ValueError("min_budget_cents cannot exceed max_budget_cents.")
         if (
             self.due_after is not None
             and self.due_before is not None
