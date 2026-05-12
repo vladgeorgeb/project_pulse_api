@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -54,7 +53,7 @@ class PaymentRecordService:
         *,
         user: User,
         project_id: int,
-        amount: Decimal,
+        amount_cents: int,
         currency: str,
         status: str,
         method: str | None,
@@ -74,11 +73,13 @@ class PaymentRecordService:
             raise ValidationError("period_start cannot be later than period_end.")
         if status == PaymentRecordStatus.PAID.value and paid_at is None:
             paid_at = datetime.now(UTC).replace(tzinfo=None)
+        if status == PaymentRecordStatus.PENDING.value and due_date is None:
+            raise ValidationError("pending payments require due_date.")
 
         now = datetime.now(UTC).replace(tzinfo=None)
         payment_record = PaymentRecord(
             project_id=project.id,
-            amount=amount,
+            amount_cents=amount_cents,
             currency=currency.strip().upper(),
             status=status,
             method=method.strip() if method else None,
@@ -102,8 +103,8 @@ class PaymentRecordService:
         user: User,
         project_id: int,
         payment_record_id: int,
-        amount: Decimal | None,
-        amount_provided: bool,
+        amount_cents: int | None,
+        amount_cents_provided: bool,
         currency: str | None,
         status: str | None,
         method: str | None,
@@ -129,10 +130,10 @@ class PaymentRecordService:
         if payment_record is None:
             raise NotFoundError("Payment record not found.")
 
-        if amount_provided:
-            if amount is None:
-                raise ValidationError("amount cannot be null.")
-            payment_record.amount = amount
+        if amount_cents_provided:
+            if amount_cents is None:
+                raise ValidationError("amount_cents cannot be null.")
+            payment_record.amount_cents = amount_cents
         if currency is not None:
             payment_record.currency = currency.strip().upper()
         if status is not None:
@@ -166,6 +167,16 @@ class PaymentRecordService:
             and payment_record.period_start > payment_record.period_end
         ):
             raise ValidationError("period_start cannot be later than period_end.")
+        if (
+            payment_record.status == PaymentRecordStatus.PENDING.value
+            and payment_record.due_date is None
+        ):
+            raise ValidationError("pending payments require due_date.")
+        if (
+            payment_record.status == PaymentRecordStatus.PAID.value
+            and payment_record.paid_at is None
+        ):
+            raise ValidationError("paid payments require paid_at.")
 
         payment_record.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self.payment_records.save(payment_record)

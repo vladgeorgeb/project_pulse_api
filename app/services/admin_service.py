@@ -7,12 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.security import hash_password
-from app.domain.enums import (
-    BillingStatus,
-    ContractType,
-    ProjectStatus,
-    TaskStatus,
-)
+from app.domain.enums import ContractType, PaymentCadence, ProjectStatus, TaskStatus
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
@@ -179,21 +174,20 @@ class AdminService:
         description: str | None,
         status: str,
         priority: str,
-        budget_cents: int,
-        hourly_rate_cents: int,
+        hourly_rate_cents: int | None,
+        expected_hours_per_week: Decimal | None,
+        monthly_rate_cents: int | None,
+        fixed_price_cents: int | None,
         contract_type: str,
-        billing_cycle: str,
-        billing_status: str,
         billing_currency: str,
-        agreed_amount: Decimal | None,
-        monthly_rate: Decimal | None,
+        start_date: date | None,
+        estimated_end_date: date | None,
+        payment_cadence: str,
         billing_notes: str | None,
         deadline: date | None,
     ) -> Project:
         if self.workspaces.get_by_id(workspace_id) is None:
             raise NotFoundError("Workspace not found.")
-        if contract_type == ContractType.INTERNAL.value:
-            billing_status = BillingStatus.NOT_BILLABLE.value
         now = datetime.now(UTC).replace(tzinfo=None)
         project = Project(
             workspace_id=workspace_id,
@@ -202,14 +196,15 @@ class AdminService:
             description=description.strip() if description else None,
             status=status,
             priority=priority,
-            budget_cents=budget_cents,
             hourly_rate_cents=hourly_rate_cents,
+            expected_hours_per_week=expected_hours_per_week,
+            monthly_rate_cents=monthly_rate_cents,
+            fixed_price_cents=fixed_price_cents,
             contract_type=contract_type,
-            billing_cycle=billing_cycle,
-            billing_status=billing_status,
             billing_currency=billing_currency.strip().upper(),
-            agreed_amount=agreed_amount,
-            monthly_rate=monthly_rate,
+            start_date=start_date,
+            estimated_end_date=estimated_end_date,
+            payment_cadence=payment_cadence,
             billing_notes=billing_notes.strip() if billing_notes else None,
             deadline=deadline,
             archived=status == ProjectStatus.ARCHIVED.value,
@@ -231,16 +226,20 @@ class AdminService:
         description: str | None,
         status: str | None,
         priority: str | None,
-        budget_cents: int | None,
         hourly_rate_cents: int | None,
+        expected_hours_per_week: Decimal | None,
+        expected_hours_per_week_provided: bool,
+        monthly_rate_cents: int | None,
+        monthly_rate_cents_provided: bool,
+        fixed_price_cents: int | None,
+        fixed_price_cents_provided: bool,
         contract_type: str | None,
-        billing_cycle: str | None,
-        billing_status: str | None,
         billing_currency: str | None,
-        agreed_amount: Decimal | None,
-        agreed_amount_provided: bool,
-        monthly_rate: Decimal | None,
-        monthly_rate_provided: bool,
+        start_date: date | None,
+        start_date_provided: bool,
+        estimated_end_date: date | None,
+        estimated_end_date_provided: bool,
+        payment_cadence: str | None,
         billing_notes: str | None,
         billing_notes_provided: bool,
         deadline: date | None,
@@ -263,24 +262,24 @@ class AdminService:
                 project.archived = True
         if priority is not None:
             project.priority = priority
-        if budget_cents is not None:
-            project.budget_cents = budget_cents
         if hourly_rate_cents is not None:
             project.hourly_rate_cents = hourly_rate_cents
+        if expected_hours_per_week_provided:
+            project.expected_hours_per_week = expected_hours_per_week
+        if monthly_rate_cents_provided:
+            project.monthly_rate_cents = monthly_rate_cents
+        if fixed_price_cents_provided:
+            project.fixed_price_cents = fixed_price_cents
         if contract_type is not None:
             project.contract_type = contract_type
-            if contract_type == ContractType.INTERNAL.value:
-                project.billing_status = BillingStatus.NOT_BILLABLE.value
-        if billing_cycle is not None:
-            project.billing_cycle = billing_cycle
-        if billing_status is not None:
-            project.billing_status = billing_status
         if billing_currency is not None:
             project.billing_currency = billing_currency.strip().upper()
-        if agreed_amount_provided:
-            project.agreed_amount = agreed_amount
-        if monthly_rate_provided:
-            project.monthly_rate = monthly_rate
+        if start_date_provided:
+            project.start_date = start_date
+        if estimated_end_date_provided:
+            project.estimated_end_date = estimated_end_date
+        if payment_cadence is not None:
+            project.payment_cadence = payment_cadence
         if billing_notes_provided:
             project.billing_notes = billing_notes.strip() if billing_notes else None
         if deadline is not None:
@@ -289,6 +288,8 @@ class AdminService:
             project.archived = archived
             if archived:
                 project.status = ProjectStatus.ARCHIVED.value
+        if project.contract_type == ContractType.NON_BILLABLE.value:
+            project.payment_cadence = PaymentCadence.NONE.value
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self.projects.save(project)
         self.db.commit()

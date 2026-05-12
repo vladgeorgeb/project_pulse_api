@@ -18,10 +18,12 @@ from app.core.exceptions import (
 )
 from app.domain.enums import Priority, ProjectStatus
 from app.models.user import User
-from app.schemas.project import (
+from app.schemas.payment_record import (
     PaymentRecordCreateRequest,
     PaymentRecordResponse,
     PaymentRecordUpdateRequest,
+)
+from app.schemas.project import (
     ProjectActionResponse,
     ProjectCreateRequest,
     ProjectListResponse,
@@ -46,8 +48,6 @@ def list_projects(
     priority: Priority | None = Query(default=None),
     client_name: str | None = Query(default=None),
     search: str | None = Query(default=None),
-    min_budget_cents: int | None = Query(default=None, ge=0),
-    max_budget_cents: int | None = Query(default=None, ge=0),
     due_before: date | None = Query(default=None),
     due_after: date | None = Query(default=None),
     overdue_only: bool = Query(default=False),
@@ -60,8 +60,7 @@ def list_projects(
         "client_name",
         "status",
         "priority",
-        "budget_cents",
-        "hourly_rate_cents",
+        "contract_type",
         "deadline",
         "created_at",
         "updated_at",
@@ -76,8 +75,6 @@ def list_projects(
             priority=priority,
             client_name=client_name,
             search=search,
-            min_budget_cents=min_budget_cents,
-            max_budget_cents=max_budget_cents,
             due_before=due_before,
             due_after=due_after,
             overdue_only=overdue_only,
@@ -97,8 +94,6 @@ def list_projects(
         priority=params.priority.value if params.priority is not None else None,
         client_name=params.client_name,
         search=params.search,
-        min_budget_cents=params.min_budget_cents,
-        max_budget_cents=params.max_budget_cents,
         due_before=params.due_before,
         due_after=params.due_after,
         overdue_only=params.overdue_only,
@@ -138,16 +133,17 @@ def create_project(
             description=payload.description,
             status=payload.status.value,
             priority=payload.priority.value,
-            budget_cents=payload.budget_cents,
-            hourly_rate_cents=payload.hourly_rate_cents,
             contract_type=payload.contract_type.value,
-            billing_cycle=payload.billing_cycle.value,
-            billing_status=payload.billing_status.value,
             billing_currency=payload.billing_currency,
-            agreed_amount=payload.agreed_amount,
-            monthly_rate=payload.monthly_rate,
+            hourly_rate_cents=payload.hourly_rate_cents,
+            expected_hours_per_week=payload.expected_hours_per_week,
+            monthly_rate_cents=payload.monthly_rate_cents,
+            fixed_price_cents=payload.fixed_price_cents,
+            start_date=payload.start_date,
+            estimated_end_date=payload.estimated_end_date,
             billing_notes=payload.billing_notes,
             deadline=payload.deadline,
+            payment_cadence=payload.payment_cadence.value,
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -209,10 +205,10 @@ def create_project_payment_record(
         payment_record = service.create_payment_record(
             user=current_user,
             project_id=project_id,
-            amount=payload.amount,
+            amount_cents=payload.amount_cents,
             currency=payload.currency,
             status=payload.status.value,
-            method=payload.method,
+            method=payload.method.value if payload.method is not None else None,
             paid_at=payload.paid_at,
             due_date=payload.due_date,
             period_start=payload.period_start,
@@ -266,11 +262,11 @@ def update_project_payment_record(
             user=current_user,
             project_id=project_id,
             payment_record_id=payment_record_id,
-            amount=payload.amount,
-            amount_provided="amount" in payload.model_fields_set,
+            amount_cents=payload.amount_cents,
+            amount_cents_provided="amount_cents" in payload.model_fields_set,
             currency=payload.currency,
             status=payload.status.value if payload.status is not None else None,
-            method=payload.method,
+            method=payload.method.value if payload.method is not None else None,
             method_provided="method" in payload.model_fields_set,
             paid_at=payload.paid_at,
             paid_at_provided="paid_at" in payload.model_fields_set,
@@ -330,28 +326,36 @@ def update_project(
             description=payload.description,
             status=payload.status.value if payload.status is not None else None,
             priority=payload.priority.value if payload.priority is not None else None,
-            budget_cents=payload.budget_cents,
             hourly_rate_cents=payload.hourly_rate_cents,
             contract_type=(
                 payload.contract_type.value
                 if payload.contract_type is not None
                 else None
             ),
-            billing_cycle=(
-                payload.billing_cycle.value
-                if payload.billing_cycle is not None
-                else None
-            ),
-            billing_status=(
-                payload.billing_status.value
-                if payload.billing_status is not None
-                else None
-            ),
             billing_currency=payload.billing_currency,
-            agreed_amount=payload.agreed_amount,
-            agreed_amount_provided="agreed_amount" in payload.model_fields_set,
-            monthly_rate=payload.monthly_rate,
-            monthly_rate_provided="monthly_rate" in payload.model_fields_set,
+            expected_hours_per_week=payload.expected_hours_per_week,
+            expected_hours_per_week_provided=(
+                "expected_hours_per_week" in payload.model_fields_set
+            ),
+            monthly_rate_cents=payload.monthly_rate_cents,
+            monthly_rate_cents_provided=(
+                "monthly_rate_cents" in payload.model_fields_set
+            ),
+            fixed_price_cents=payload.fixed_price_cents,
+            fixed_price_cents_provided=(
+                "fixed_price_cents" in payload.model_fields_set
+            ),
+            start_date=payload.start_date,
+            start_date_provided=("start_date" in payload.model_fields_set),
+            estimated_end_date=payload.estimated_end_date,
+            estimated_end_date_provided=(
+                "estimated_end_date" in payload.model_fields_set
+            ),
+            payment_cadence=(
+                payload.payment_cadence.value
+                if payload.payment_cadence is not None
+                else None
+            ),
             billing_notes=payload.billing_notes,
             billing_notes_provided="billing_notes" in payload.model_fields_set,
             deadline=payload.deadline,

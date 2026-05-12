@@ -28,8 +28,7 @@ PROJECT_SORT_COLUMNS = {
         (Project.priority == "low", 3),
         else_=4,
     ),
-    "budget_cents": Project.budget_cents,
-    "hourly_rate_cents": Project.hourly_rate_cents,
+    "contract_type": Project.contract_type,
     "deadline": Project.deadline,
     "created_at": Project.created_at,
     "updated_at": Project.updated_at,
@@ -66,10 +65,7 @@ class ProjectRepository:
         return self.db.execute(stmt).unique().scalar_one_or_none()
 
     def get_for_workspace(
-        self,
-        *,
-        project_id: int,
-        workspace_id: int,
+        self, *, project_id: int, workspace_id: int
     ) -> Project | None:
         stmt = (
             select(Project)
@@ -87,8 +83,6 @@ class ProjectRepository:
         priority: str | None = None,
         client_name: str | None = None,
         search: str | None = None,
-        min_budget_cents: int | None = None,
-        max_budget_cents: int | None = None,
         due_before: date | None = None,
         due_after: date | None = None,
         overdue_only: bool = False,
@@ -101,8 +95,6 @@ class ProjectRepository:
             priority=priority,
             client_name=client_name,
             search=search,
-            min_budget_cents=min_budget_cents,
-            max_budget_cents=max_budget_cents,
             due_before=due_before,
             due_after=due_after,
             overdue_only=overdue_only,
@@ -122,8 +114,6 @@ class ProjectRepository:
         priority: str | None = None,
         client_name: str | None = None,
         search: str | None = None,
-        min_budget_cents: int | None = None,
-        max_budget_cents: int | None = None,
         due_before: date | None = None,
         due_after: date | None = None,
         overdue_only: bool = False,
@@ -169,14 +159,6 @@ class ProjectRepository:
             )
             stmt = stmt.where(search_filter)
             count_stmt = count_stmt.where(search_filter)
-
-        if min_budget_cents is not None:
-            stmt = stmt.where(Project.budget_cents >= min_budget_cents)
-            count_stmt = count_stmt.where(Project.budget_cents >= min_budget_cents)
-
-        if max_budget_cents is not None:
-            stmt = stmt.where(Project.budget_cents <= max_budget_cents)
-            count_stmt = count_stmt.where(Project.budget_cents <= max_budget_cents)
 
         if due_before is not None:
             stmt = stmt.where(Project.deadline <= due_before)

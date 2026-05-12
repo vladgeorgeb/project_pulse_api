@@ -5,11 +5,10 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.domain.constants import MAX_PROJECT_BUDGET_CENTS, MAX_TASK_ESTIMATE_MINUTES
+from app.domain.constants import MAX_TASK_ESTIMATE_MINUTES
 from app.domain.enums import (
-    BillingCycle,
-    BillingStatus,
     ContractType,
+    PaymentCadence,
     Priority,
     ProjectStatus,
     TaskStatus,
@@ -72,14 +71,15 @@ class AdminProjectResponse(BaseModel):
     description: str | None
     status: ProjectStatus
     priority: Priority
-    budget_cents: int
-    hourly_rate_cents: int
+    hourly_rate_cents: int | None
+    expected_hours_per_week: Decimal | None
+    monthly_rate_cents: int | None
+    fixed_price_cents: int | None
     contract_type: ContractType
-    billing_cycle: BillingCycle
-    billing_status: BillingStatus
     billing_currency: str
-    agreed_amount: Decimal | None
-    monthly_rate: Decimal | None
+    start_date: date | None
+    estimated_end_date: date | None
+    payment_cadence: PaymentCadence
     billing_notes: str | None
     deadline: date | None
     archived: bool
@@ -94,22 +94,21 @@ class AdminProjectCreateRequest(BaseModel):
     description: str | None = Field(default=None, max_length=4_000)
     status: ProjectStatus = ProjectStatus.PLANNED
     priority: Priority = Priority.MEDIUM
-    budget_cents: int = Field(default=0, ge=0, le=MAX_PROJECT_BUDGET_CENTS)
-    hourly_rate_cents: int = Field(default=0, ge=0, le=1_000_000)
+    hourly_rate_cents: int | None = Field(default=None, ge=1, le=1_000_000)
+    expected_hours_per_week: Decimal | None = Field(default=None, ge=0)
+    monthly_rate_cents: int | None = Field(default=None, ge=1)
+    fixed_price_cents: int | None = Field(default=None, ge=1)
     contract_type: ContractType = ContractType.FIXED_PRICE
-    billing_cycle: BillingCycle = BillingCycle.MONTHLY
-    billing_status: BillingStatus = BillingStatus.UNPAID
     billing_currency: str = Field(default="USD", min_length=3, max_length=3)
-    agreed_amount: Decimal | None = Field(default=None, ge=0)
-    monthly_rate: Decimal | None = Field(default=None, ge=0)
+    start_date: date | None = None
+    estimated_end_date: date | None = None
+    payment_cadence: PaymentCadence = PaymentCadence.MANUAL
     billing_notes: str | None = Field(default=None, max_length=2_000)
     deadline: date | None = None
 
     @model_validator(mode="after")
     def normalize_billing(self) -> "AdminProjectCreateRequest":
         self.billing_currency = self.billing_currency.upper()
-        if self.contract_type == ContractType.INTERNAL:
-            self.billing_status = BillingStatus.NOT_BILLABLE
         return self
 
 
@@ -120,14 +119,15 @@ class AdminProjectUpdateRequest(BaseModel):
     description: str | None = Field(default=None, max_length=4_000)
     status: ProjectStatus | None = None
     priority: Priority | None = None
-    budget_cents: int | None = Field(default=None, ge=0, le=MAX_PROJECT_BUDGET_CENTS)
-    hourly_rate_cents: int | None = Field(default=None, ge=0, le=1_000_000)
+    hourly_rate_cents: int | None = Field(default=None, ge=1, le=1_000_000)
+    expected_hours_per_week: Decimal | None = Field(default=None, ge=0)
+    monthly_rate_cents: int | None = Field(default=None, ge=1)
+    fixed_price_cents: int | None = Field(default=None, ge=1)
     contract_type: ContractType | None = None
-    billing_cycle: BillingCycle | None = None
-    billing_status: BillingStatus | None = None
     billing_currency: str | None = Field(default=None, min_length=3, max_length=3)
-    agreed_amount: Decimal | None = Field(default=None, ge=0)
-    monthly_rate: Decimal | None = Field(default=None, ge=0)
+    start_date: date | None = None
+    estimated_end_date: date | None = None
+    payment_cadence: PaymentCadence | None = None
     billing_notes: str | None = Field(default=None, max_length=2_000)
     deadline: date | None = None
     archived: bool | None = None
@@ -136,8 +136,6 @@ class AdminProjectUpdateRequest(BaseModel):
     def normalize_billing(self) -> "AdminProjectUpdateRequest":
         if self.billing_currency is not None:
             self.billing_currency = self.billing_currency.upper()
-        if self.contract_type == ContractType.INTERNAL:
-            self.billing_status = BillingStatus.NOT_BILLABLE
         return self
 
 

@@ -5,11 +5,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import (
-    BusinessRuleError,
-    NotFoundError,
-)
-from app.domain.enums import BillingStatus, ContractType, ProjectStatus
+from app.core.exceptions import NotFoundError, ValidationError
+from app.domain.enums import ContractType, PaymentCadence, ProjectStatus
 from app.domain.project_rules import validate_project_completion
 from app.models.project import Project
 from app.models.user import User
@@ -33,8 +30,6 @@ class ProjectService:
         priority: str | None = None,
         client_name: str | None = None,
         search: str | None = None,
-        min_budget_cents: int | None = None,
-        max_budget_cents: int | None = None,
         due_before: date | None = None,
         due_after: date | None = None,
         overdue_only: bool = False,
@@ -47,8 +42,6 @@ class ProjectService:
             priority=priority,
             client_name=client_name,
             search=search,
-            min_budget_cents=min_budget_cents,
-            max_budget_cents=max_budget_cents,
             due_before=due_before,
             due_after=due_after,
             overdue_only=overdue_only,
@@ -63,8 +56,6 @@ class ProjectService:
         priority: str | None = None,
         client_name: str | None = None,
         search: str | None = None,
-        min_budget_cents: int | None = None,
-        max_budget_cents: int | None = None,
         due_before: date | None = None,
         due_after: date | None = None,
         overdue_only: bool = False,
@@ -81,8 +72,6 @@ class ProjectService:
             priority=priority,
             client_name=client_name,
             search=search,
-            min_budget_cents=min_budget_cents,
-            max_budget_cents=max_budget_cents,
             due_before=due_before,
             due_after=due_after,
             overdue_only=overdue_only,
@@ -96,8 +85,7 @@ class ProjectService:
     def get_project_for_user(self, *, user: User, project_id: int) -> Project:
         workspace = self._workspace_for_user(user)
         project = self.projects.get_for_workspace(
-            project_id=project_id,
-            workspace_id=workspace.id,
+            project_id=project_id, workspace_id=workspace.id
         )
         if project is None:
             raise NotFoundError("Project not found.")
@@ -112,20 +100,29 @@ class ProjectService:
         description: str | None,
         status: str,
         priority: str,
-        budget_cents: int,
-        hourly_rate_cents: int,
         contract_type: str,
-        billing_cycle: str,
-        billing_status: str,
         billing_currency: str,
-        agreed_amount: Decimal | None,
-        monthly_rate: Decimal | None,
-        billing_notes: str | None,
+        hourly_rate_cents: int | None,
+        expected_hours_per_week: Decimal | None,
+        monthly_rate_cents: int | None,
+        fixed_price_cents: int | None,
+        start_date: date | None,
+        estimated_end_date: date | None,
         deadline: date | None,
+        payment_cadence: str,
+        billing_notes: str | None,
     ) -> Project:
         workspace = self._workspace_for_user(user)
-        if contract_type == ContractType.INTERNAL.value:
-            billing_status = BillingStatus.NOT_BILLABLE.value
+        self._validate_contract_fields(
+            contract_type=contract_type,
+            hourly_rate_cents=hourly_rate_cents,
+            monthly_rate_cents=monthly_rate_cents,
+            fixed_price_cents=fixed_price_cents,
+            payment_cadence=payment_cadence,
+            start_date=start_date,
+            estimated_end_date=estimated_end_date,
+        )
+
         now = datetime.now(UTC).replace(tzinfo=None)
         project = Project(
             workspace_id=workspace.id,
@@ -134,16 +131,17 @@ class ProjectService:
             description=description.strip() if description else None,
             status=status,
             priority=priority,
-            budget_cents=budget_cents,
-            hourly_rate_cents=hourly_rate_cents,
             contract_type=contract_type,
-            billing_cycle=billing_cycle,
-            billing_status=billing_status,
             billing_currency=billing_currency.strip().upper(),
-            agreed_amount=agreed_amount,
-            monthly_rate=monthly_rate,
-            billing_notes=billing_notes.strip() if billing_notes else None,
+            hourly_rate_cents=hourly_rate_cents,
+            expected_hours_per_week=expected_hours_per_week,
+            monthly_rate_cents=monthly_rate_cents,
+            fixed_price_cents=fixed_price_cents,
+            start_date=start_date,
+            estimated_end_date=estimated_end_date,
             deadline=deadline,
+            payment_cadence=payment_cadence,
+            billing_notes=billing_notes.strip() if billing_notes else None,
             archived=status == ProjectStatus.ARCHIVED.value,
             created_at=now,
             updated_at=now,
@@ -153,8 +151,7 @@ class ProjectService:
         self.db.refresh(project)
         return (
             self.projects.get_for_workspace(
-                project_id=project.id,
-                workspace_id=workspace.id,
+                project_id=project.id, workspace_id=workspace.id
             )
             or project
         )
@@ -169,25 +166,28 @@ class ProjectService:
         description: str | None,
         status: str | None,
         priority: str | None,
-        budget_cents: int | None,
-        hourly_rate_cents: int | None,
         contract_type: str | None,
-        billing_cycle: str | None,
-        billing_status: str | None,
         billing_currency: str | None,
-        agreed_amount: Decimal | None,
-        agreed_amount_provided: bool,
-        monthly_rate: Decimal | None,
-        monthly_rate_provided: bool,
+        hourly_rate_cents: int | None,
+        expected_hours_per_week: Decimal | None,
+        expected_hours_per_week_provided: bool,
+        monthly_rate_cents: int | None,
+        monthly_rate_cents_provided: bool,
+        fixed_price_cents: int | None,
+        fixed_price_cents_provided: bool,
+        start_date: date | None,
+        start_date_provided: bool,
+        estimated_end_date: date | None,
+        estimated_end_date_provided: bool,
+        deadline: date | None,
+        payment_cadence: str | None,
         billing_notes: str | None,
         billing_notes_provided: bool,
-        deadline: date | None,
         archived: bool | None,
     ) -> Project:
         workspace = self._workspace_for_user(user)
         project = self.projects.get_for_workspace(
-            project_id=project_id,
-            workspace_id=workspace.id,
+            project_id=project_id, workspace_id=workspace.id
         )
         if project is None:
             raise NotFoundError("Project not found.")
@@ -207,40 +207,50 @@ class ProjectService:
                 project.archived = True
         if priority is not None:
             project.priority = priority
-        if budget_cents is not None:
-            project.budget_cents = budget_cents
-        if hourly_rate_cents is not None:
-            project.hourly_rate_cents = hourly_rate_cents
         if contract_type is not None:
             project.contract_type = contract_type
-            if contract_type == ContractType.INTERNAL.value:
-                project.billing_status = BillingStatus.NOT_BILLABLE.value
-        if billing_cycle is not None:
-            project.billing_cycle = billing_cycle
-        if billing_status is not None:
-            project.billing_status = billing_status
         if billing_currency is not None:
             project.billing_currency = billing_currency.strip().upper()
-        if agreed_amount_provided:
-            project.agreed_amount = agreed_amount
-        if monthly_rate_provided:
-            project.monthly_rate = monthly_rate
-        if billing_notes_provided:
-            project.billing_notes = billing_notes.strip() if billing_notes else None
+        if hourly_rate_cents is not None:
+            project.hourly_rate_cents = hourly_rate_cents
+        if expected_hours_per_week_provided:
+            project.expected_hours_per_week = expected_hours_per_week
+        if monthly_rate_cents_provided:
+            project.monthly_rate_cents = monthly_rate_cents
+        if fixed_price_cents_provided:
+            project.fixed_price_cents = fixed_price_cents
+        if start_date_provided:
+            project.start_date = start_date
+        if estimated_end_date_provided:
+            project.estimated_end_date = estimated_end_date
         if deadline is not None:
             project.deadline = deadline
+        if payment_cadence is not None:
+            project.payment_cadence = payment_cadence
+        if billing_notes_provided:
+            project.billing_notes = billing_notes.strip() if billing_notes else None
         if archived is not None:
             project.archived = archived
             if archived:
                 project.status = ProjectStatus.ARCHIVED.value
+
+        self._validate_contract_fields(
+            contract_type=project.contract_type,
+            hourly_rate_cents=project.hourly_rate_cents,
+            monthly_rate_cents=project.monthly_rate_cents,
+            fixed_price_cents=project.fixed_price_cents,
+            payment_cadence=project.payment_cadence,
+            start_date=project.start_date,
+            estimated_end_date=project.estimated_end_date,
+        )
+
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
         self.projects.save(project)
         self.db.commit()
         self.db.expire_all()
         refreshed = self.projects.get_for_workspace(
-            project_id=project_id,
-            workspace_id=workspace.id,
+            project_id=project_id, workspace_id=workspace.id
         )
         if refreshed is None:
             raise NotFoundError("Project not found.")
@@ -254,15 +264,11 @@ class ProjectService:
     def complete_project(self, *, user: User, project_id: int) -> Project:
         workspace = self._workspace_for_user(user)
         project = self.projects.get_for_workspace(
-            project_id=project_id,
-            workspace_id=workspace.id,
+            project_id=project_id, workspace_id=workspace.id
         )
         if project is None:
             raise NotFoundError("Project not found.")
-        try:
-            validate_project_completion(task.status for task in project.tasks)
-        except BusinessRuleError:
-            raise
+        validate_project_completion(task.status for task in project.tasks)
         project.status = ProjectStatus.COMPLETED.value
         project.archived = False
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)
@@ -270,8 +276,7 @@ class ProjectService:
         self.db.commit()
         self.db.expire_all()
         refreshed = self.projects.get_for_workspace(
-            project_id=project_id,
-            workspace_id=workspace.id,
+            project_id=project_id, workspace_id=workspace.id
         )
         if refreshed is None:
             raise NotFoundError("Project not found.")
@@ -282,3 +287,49 @@ class ProjectService:
         if workspace is None:
             raise NotFoundError("Workspace not found.")
         return workspace
+
+    def _validate_contract_fields(
+        self,
+        *,
+        contract_type: str,
+        hourly_rate_cents: int | None,
+        monthly_rate_cents: int | None,
+        fixed_price_cents: int | None,
+        payment_cadence: str,
+        start_date: date | None,
+        estimated_end_date: date | None,
+    ) -> None:
+        if contract_type == ContractType.HOURLY.value and hourly_rate_cents is None:
+            raise ValidationError("hourly contracts require hourly_rate_cents.")
+        if (
+            contract_type == ContractType.MONTHLY_RETAINER.value
+            and monthly_rate_cents is None
+        ):
+            raise ValidationError(
+                "monthly_retainer contracts require monthly_rate_cents."
+            )
+        if (
+            contract_type == ContractType.FIXED_PRICE.value
+            and fixed_price_cents is None
+        ):
+            raise ValidationError("fixed_price contracts require fixed_price_cents.")
+        if (
+            contract_type == ContractType.NON_BILLABLE.value
+            and payment_cadence != PaymentCadence.NONE.value
+        ):
+            raise ValidationError(
+                "non_billable contracts require payment_cadence 'none'."
+            )
+        if (
+            contract_type != ContractType.NON_BILLABLE.value
+            and payment_cadence == PaymentCadence.NONE.value
+        ):
+            raise ValidationError(
+                "payment_cadence 'none' is only valid for non_billable contracts."
+            )
+        if (
+            start_date is not None
+            and estimated_end_date is not None
+            and start_date > estimated_end_date
+        ):
+            raise ValidationError("start_date cannot be later than estimated_end_date.")

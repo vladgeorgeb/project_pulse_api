@@ -254,14 +254,15 @@ def create_project(
             description=payload.description,
             status=payload.status.value,
             priority=payload.priority.value,
-            budget_cents=payload.budget_cents,
             hourly_rate_cents=payload.hourly_rate_cents,
+            expected_hours_per_week=payload.expected_hours_per_week,
+            monthly_rate_cents=payload.monthly_rate_cents,
+            fixed_price_cents=payload.fixed_price_cents,
             contract_type=payload.contract_type.value,
-            billing_cycle=payload.billing_cycle.value,
-            billing_status=payload.billing_status.value,
             billing_currency=payload.billing_currency,
-            agreed_amount=payload.agreed_amount,
-            monthly_rate=payload.monthly_rate,
+            start_date=payload.start_date,
+            estimated_end_date=payload.estimated_end_date,
+            payment_cadence=payload.payment_cadence.value,
             billing_notes=payload.billing_notes,
             deadline=payload.deadline,
         )
@@ -289,28 +290,36 @@ def update_project(
             description=payload.description,
             status=payload.status.value if payload.status is not None else None,
             priority=payload.priority.value if payload.priority is not None else None,
-            budget_cents=payload.budget_cents,
             hourly_rate_cents=payload.hourly_rate_cents,
+            expected_hours_per_week=payload.expected_hours_per_week,
+            expected_hours_per_week_provided=(
+                "expected_hours_per_week" in payload.model_fields_set
+            ),
+            monthly_rate_cents=payload.monthly_rate_cents,
+            monthly_rate_cents_provided=(
+                "monthly_rate_cents" in payload.model_fields_set
+            ),
+            fixed_price_cents=payload.fixed_price_cents,
+            fixed_price_cents_provided=(
+                "fixed_price_cents" in payload.model_fields_set
+            ),
             contract_type=(
                 payload.contract_type.value
                 if payload.contract_type is not None
                 else None
             ),
-            billing_cycle=(
-                payload.billing_cycle.value
-                if payload.billing_cycle is not None
-                else None
-            ),
-            billing_status=(
-                payload.billing_status.value
-                if payload.billing_status is not None
-                else None
-            ),
             billing_currency=payload.billing_currency,
-            agreed_amount=payload.agreed_amount,
-            agreed_amount_provided="agreed_amount" in payload.model_fields_set,
-            monthly_rate=payload.monthly_rate,
-            monthly_rate_provided="monthly_rate" in payload.model_fields_set,
+            start_date=payload.start_date,
+            start_date_provided=("start_date" in payload.model_fields_set),
+            estimated_end_date=payload.estimated_end_date,
+            estimated_end_date_provided=(
+                "estimated_end_date" in payload.model_fields_set
+            ),
+            payment_cadence=(
+                payload.payment_cadence.value
+                if payload.payment_cadence is not None
+                else None
+            ),
             billing_notes=payload.billing_notes,
             billing_notes_provided="billing_notes" in payload.model_fields_set,
             deadline=payload.deadline,
