@@ -3,6 +3,9 @@ import type {
   FeedbackCreatePayload,
   FeedbackResponse,
   MessageResponse,
+  PaymentRecord,
+  PaymentRecordCreatePayload,
+  PaymentRecordUpdatePayload,
   Project,
   ProjectCreatePayload,
   ProjectFilters,
@@ -196,6 +199,37 @@ export const api = {
 
   async deleteProject(token: string, projectId: number): Promise<void> {
     await request<null>(`/projects/${projectId}`, token, { method: "DELETE" });
+  },
+
+  async listPaymentRecords(token: string, projectId: number): Promise<PaymentRecord[]> {
+    return request<PaymentRecord[]>(`/projects/${projectId}/payments`, token);
+  },
+
+  async createPaymentRecord(
+    token: string,
+    projectId: number,
+    payload: PaymentRecordCreatePayload,
+  ): Promise<PaymentRecord> {
+    return request<PaymentRecord>(`/projects/${projectId}/payments`, token, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updatePaymentRecord(
+    token: string,
+    projectId: number,
+    paymentRecordId: number,
+    payload: PaymentRecordUpdatePayload,
+  ): Promise<PaymentRecord> {
+    return request<PaymentRecord>(`/projects/${projectId}/payments/${paymentRecordId}`, token, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deletePaymentRecord(token: string, projectId: number, paymentRecordId: number): Promise<void> {
+    await request<null>(`/projects/${projectId}/payments/${paymentRecordId}`, token, { method: "DELETE" });
   },
 
   async createTask(token: string, projectId: number, payload: TaskCreatePayload): Promise<Task> {

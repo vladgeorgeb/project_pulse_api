@@ -1,7 +1,8 @@
 import { FormEvent, useMemo, useState } from "react";
 import type {
   ContractType,
-  PaymentStatus,
+  PaymentRecordCreatePayload,
+  PaymentRecordUpdatePayload,
   Priority,
   Project,
   ProjectStatus,
@@ -11,12 +12,20 @@ import type {
   TaskUpdatePayload,
 } from "../api/types";
 import { centsToUsd, classNames, formatDate, usdToCents } from "../utils/format";
+import PaymentHistory from "./PaymentHistory";
 import TaskList from "./TaskList";
 
 interface ProjectBoardProps {
   projects: Project[];
   disabled: boolean;
   onUpdateProject: (projectId: number, payload: ProjectUpdatePayload) => Promise<void>;
+  onCreatePaymentRecord: (projectId: number, payload: PaymentRecordCreatePayload) => Promise<void>;
+  onUpdatePaymentRecord: (
+    projectId: number,
+    paymentRecordId: number,
+    payload: PaymentRecordUpdatePayload,
+  ) => Promise<void>;
+  onDeletePaymentRecord: (projectId: number, paymentRecordId: number) => Promise<void>;
   onCreateTask: (projectId: number, payload: TaskCreatePayload) => Promise<void>;
   onUpdateTask: (taskId: number, payload: TaskUpdatePayload) => Promise<void>;
   onUpdateTaskStatus: (taskId: number, status: TaskStatus) => Promise<void>;
@@ -37,60 +46,13 @@ interface ProjectEditFormProps {
 const priorities: Priority[] = ["low", "medium", "high", "urgent"];
 const editableProjectStatuses: ProjectStatus[] = ["planned", "active", "paused", "completed", "archived"];
 const contractTypes: ContractType[] = ["fixed_price", "hourly", "monthly_retainer", "full_time_monthly", "internal"];
-const paymentStatuses: PaymentStatus[] = ["not_started", "pending", "paid", "overdue"];
 
 function centsToUsdInput(cents: number): string {
   return Number((cents / 100).toFixed(2)).toString();
 }
 
-function amountToInput(value: Project["agreed_amount"]): string {
-  if (value === null) return "";
-  return Number(value).toString();
-}
-
-function optionalNumber(value: string): number | null {
-  if (value.trim() === "") return null;
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : null;
-}
-
 function optionLabel(value: string): string {
   return value.replace(/_/g, " ");
-}
-
-function isMonthlyContract(contractType: ContractType): boolean {
-  return contractType === "monthly_retainer" || contractType === "full_time_monthly";
-}
-
-function hasContractPaymentInfo(project: Project): boolean {
-  return (
-    project.contract_type !== "fixed_price" ||
-    project.payment_status === "paid" ||
-    project.payment_status === "overdue" ||
-    project.monthly_amount !== null ||
-    project.next_payment_due_date !== null
-  );
-}
-
-function formatBillingAmount(value: Project["agreed_amount"], currency: string): string | null {
-  if (value === null) return null;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(Number(value));
-}
-
-function paymentStatusClass(project: Project): string {
-  if (project.payment_status === "pending" && project.next_payment_due_date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(`${project.next_payment_due_date}T00:00:00`);
-    const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / 86_400_000);
-    if (daysUntilDue < 0) return "overdue";
-    if (daysUntilDue <= 7) return "due_soon";
-  }
-  return project.payment_status;
 }
 
 function hasOpenTasks(project: Project): boolean {
@@ -99,13 +61,13 @@ function hasOpenTasks(project: Project): boolean {
 
 function estimateProjectCardHeight(project: Project): number {
   const descriptionLines = Math.ceil((project.description?.length ?? 0) / 80);
-  const billingNotesLines = Math.ceil((project.billing_notes?.length ?? 0) / 80);
+  const paymentRecordHeight = Math.max(project.payment_records.length, 1) * 72;
   const taskHeight = project.tasks.reduce((total, task) => {
     const taskDescriptionLines = Math.ceil((task.description?.length ?? 0) / 72);
     return total + 86 + taskDescriptionLines * 18;
   }, 0);
 
-  return 300 + descriptionLines * 22 + billingNotesLines * 22 + taskHeight;
+  return 300 + descriptionLines * 22 + paymentRecordHeight + taskHeight;
 }
 
 function distributeProjects(projects: Project[]): Project[][] {
@@ -130,16 +92,11 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
   const [budgetUsd, setBudgetUsd] = useState(centsToUsdInput(project.budget_cents));
   const [hourlyRateUsd, setHourlyRateUsd] = useState(centsToUsdInput(project.hourly_rate_cents));
   const [contractType, setContractType] = useState<ContractType>(project.contract_type);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(project.payment_status);
   const [currency, setCurrency] = useState(project.currency ?? project.billing_currency);
-  const [monthlyAmount, setMonthlyAmount] = useState(amountToInput(project.monthly_amount ?? project.monthly_rate));
-  const [nextPaymentDueDate, setNextPaymentDueDate] = useState(project.next_payment_due_date ?? "");
-  const [billingNotes, setBillingNotes] = useState(project.billing_notes ?? "");
   const [deadline, setDeadline] = useState(project.deadline ?? "");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedPaymentStatus = contractType === "internal" ? "not_started" : paymentStatus;
     const normalizedCurrency = currency.trim().toUpperCase() || "USD";
     await onSave(project.id, {
       title,
@@ -150,12 +107,8 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
       budget_cents: usdToCents(budgetUsd),
       hourly_rate_cents: usdToCents(hourlyRateUsd),
       contract_type: contractType,
-      payment_status: normalizedPaymentStatus,
       billing_currency: normalizedCurrency,
       currency: normalizedCurrency,
-      monthly_amount: optionalNumber(monthlyAmount),
-      next_payment_due_date: nextPaymentDueDate || null,
-      billing_notes: billingNotes.trim() || null,
       deadline: deadline || null,
       archived: status === "archived",
     });
@@ -235,29 +188,10 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
           Contract type
           <select
             value={contractType}
-            onChange={(event) => {
-              const nextType = event.target.value as ContractType;
-              setContractType(nextType);
-              if (nextType === "internal") setPaymentStatus("not_started");
-              if (nextType !== "internal" && paymentStatus === "not_started") setPaymentStatus("pending");
-            }}
+            onChange={(event) => setContractType(event.target.value as ContractType)}
             disabled={disabled}
           >
             {contractTypes.map((item) => (
-              <option key={item} value={item}>
-                {optionLabel(item)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Payment status
-          <select
-            value={contractType === "internal" ? "not_started" : paymentStatus}
-            onChange={(event) => setPaymentStatus(event.target.value as PaymentStatus)}
-            disabled={disabled || contractType === "internal"}
-          >
-            {paymentStatuses.map((item) => (
               <option key={item} value={item}>
                 {optionLabel(item)}
               </option>
@@ -276,40 +210,6 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
         </label>
       </div>
 
-      <div className="two-column-form">
-        <label>
-          Monthly amount
-          <input
-            type="number"
-            min={0}
-            step={0.01}
-            value={monthlyAmount}
-            onChange={(event) => setMonthlyAmount(event.target.value)}
-            required={isMonthlyContract(contractType)}
-            disabled={disabled}
-          />
-        </label>
-        <label>
-          Next payment due
-          <input
-            type="date"
-            value={nextPaymentDueDate}
-            onChange={(event) => setNextPaymentDueDate(event.target.value)}
-            disabled={disabled}
-          />
-        </label>
-      </div>
-
-      <label>
-        Billing notes
-        <textarea
-          value={billingNotes}
-          onChange={(event) => setBillingNotes(event.target.value)}
-          rows={2}
-          disabled={disabled}
-        />
-      </label>
-
       <div className="inline-form-actions">
         <button type="submit" className="small-button" disabled={disabled}>
           Save project
@@ -326,6 +226,9 @@ export default function ProjectBoard({
   projects,
   disabled,
   onUpdateProject,
+  onCreatePaymentRecord,
+  onUpdatePaymentRecord,
+  onDeletePaymentRecord,
   onCreateTask,
   onUpdateTask,
   onUpdateTaskStatus,
@@ -345,11 +248,7 @@ export default function ProjectBoard({
           {column.map((project) => {
             const blockedCompletion = hasOpenTasks(project);
             const isEditingProject = editingProjectId === project.id;
-            const showContractPaymentInfo = hasContractPaymentInfo(project);
-            const monthlyBillingAmount = formatBillingAmount(
-              project.monthly_amount ?? project.monthly_rate,
-              project.currency,
-            );
+            const showContractInfo = project.contract_type !== "fixed_price";
 
             return (
               <article className="project-card" key={project.id}>
@@ -358,12 +257,7 @@ export default function ProjectBoard({
                     <div className="project-meta-row">
                       <span className={classNames("status-pill", project.status)}>{project.status}</span>
                       <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
-                      {showContractPaymentInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
-                      {showContractPaymentInfo ? (
-                        <span className={classNames("payment-pill", paymentStatusClass(project))}>
-                          {optionLabel(project.payment_status)}
-                        </span>
-                      ) : null}
+                      {showContractInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
                       {project.archived ? <span className="status-pill archived">archived</span> : null}
                     </div>
                     <h3>{project.title}</h3>
@@ -382,13 +276,7 @@ export default function ProjectBoard({
                   <span>Deadline: {formatDate(project.deadline)}</span>
                   <span>Estimated: {project.estimated_hours.toFixed(1)}h</span>
                   <span>Actual: {project.actual_hours.toFixed(1)}h</span>
-                  {isMonthlyContract(project.contract_type) && monthlyBillingAmount ? <span>Monthly: {monthlyBillingAmount}</span> : null}
-                  {isMonthlyContract(project.contract_type) && project.next_payment_due_date ? (
-                    <span>Next payment: {formatDate(project.next_payment_due_date)}</span>
-                  ) : null}
                 </div>
-
-                {project.billing_notes ? <p className="project-description">Billing: {project.billing_notes}</p> : null}
 
                 <div className="progress-block">
                   <div className="progress-label">
@@ -408,6 +296,14 @@ export default function ProjectBoard({
                     onCancel={() => setEditingProjectId(null)}
                   />
                 ) : null}
+
+                <PaymentHistory
+                  project={project}
+                  disabled={disabled}
+                  onCreatePaymentRecord={onCreatePaymentRecord}
+                  onUpdatePaymentRecord={onUpdatePaymentRecord}
+                  onDeletePaymentRecord={onDeletePaymentRecord}
+                />
 
                 <TaskList
                   projectId={project.id}

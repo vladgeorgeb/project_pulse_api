@@ -1,5 +1,5 @@
 import type { DashboardSummary, Project, Task } from "../api/types";
-import { centsToUsd, classNames } from "../utils/format";
+import { centsToUsd, classNames, formatDate } from "../utils/format";
 
 interface SummaryCardsProps {
   summary: DashboardSummary;
@@ -25,12 +25,23 @@ function getMetricStatusClass(value: number, kind: MetricStatusKind): string | u
   return undefined;
 }
 
-function formatCurrencyAmount(value: number): string {
+function formatCurrencyAmount(value: number, currency = "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatPaymentAmount(summary: DashboardSummary, value: number | null): string {
+  if (summary.has_mixed_payment_currencies) return "Mixed";
+  if (value === null) return "None";
+  return formatCurrencyAmount(value, summary.payment_summary_currency ?? "USD");
+}
+
+function formatNextDueAmount(summary: DashboardSummary): string {
+  if (summary.next_payment_due_amount === null) return "None";
+  return formatCurrencyAmount(summary.next_payment_due_amount, summary.next_payment_due_currency ?? "USD");
 }
 
 export default function SummaryCards({ summary, projects }: SummaryCardsProps) {
@@ -133,29 +144,34 @@ export default function SummaryCards({ summary, projects }: SummaryCardsProps) {
 
       <article className="metric-group-card billing-metrics-card">
         <div className="metric-group-heading">
-          <span>Billing</span>
-          <strong>{formatCurrencyAmount(summary.total_monthly_recurring_amount)}</strong>
+          <span>Payments</span>
+          <strong>{formatPaymentAmount(summary, summary.total_paid_amount)}</strong>
         </div>
         <div className="metric-grid compact-metric-grid">
-          <div className={classNames("metric-inline", getMetricStatusClass(summary.active_monthly_contracts, "positive-good"))}>
-            <span>Monthly contracts</span>
-            <strong>{summary.active_monthly_contracts}</strong>
-            <small>Active recurring</small>
+          <div className={classNames("metric-inline", getMetricStatusClass(summary.total_paid_amount, "positive-good"))}>
+            <span>Total paid</span>
+            <strong>{formatPaymentAmount(summary, summary.total_paid_amount)}</strong>
+            <small>{summary.has_mixed_payment_currencies ? "Multiple currencies" : "Payment records"}</small>
           </div>
           <div className={classNames("metric-inline", getMetricStatusClass(summary.paid_this_month_amount, "positive-good"))}>
             <span>Paid this month</span>
-            <strong>{formatCurrencyAmount(summary.paid_this_month_amount)}</strong>
-            <small>Current cycle</small>
+            <strong>{formatPaymentAmount(summary, summary.paid_this_month_amount)}</strong>
+            <small>{summary.has_mixed_payment_currencies ? "Multiple currencies" : "Current cycle"}</small>
           </div>
           <div className={classNames("metric-inline", getMetricStatusClass(summary.pending_payment_amount, "positive-warning"))}>
             <span>Pending</span>
-            <strong>{formatCurrencyAmount(summary.pending_payment_amount)}</strong>
-            <small>{summary.pending_payment_amount > 0 ? "Awaiting payment" : "None pending"}</small>
+            <strong>{formatPaymentAmount(summary, summary.pending_payment_amount)}</strong>
+            <small>{summary.has_mixed_payment_currencies ? "Multiple currencies" : summary.pending_payment_amount > 0 ? "Awaiting payment" : "None pending"}</small>
           </div>
           <div className={classNames("metric-inline", getMetricStatusClass(summary.overdue_payment_amount, "zero-good"))}>
             <span>Overdue</span>
-            <strong>{formatCurrencyAmount(summary.overdue_payment_amount)}</strong>
+            <strong>{formatPaymentAmount(summary, summary.overdue_payment_amount)}</strong>
             <small>{summary.overdue_payments > 0 ? `${summary.overdue_payments} past due` : "None overdue"}</small>
+          </div>
+          <div className={classNames("metric-inline", getMetricStatusClass(summary.next_payment_due_amount ?? 0, "positive-warning"))}>
+            <span>Next due</span>
+            <strong>{formatNextDueAmount(summary)}</strong>
+            <small>{summary.next_payment_due_date ? formatDate(summary.next_payment_due_date) : "No upcoming due date"}</small>
           </div>
         </div>
       </article>

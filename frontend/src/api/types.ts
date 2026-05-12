@@ -4,7 +4,7 @@ export type Priority = "low" | "medium" | "high" | "urgent";
 export type ContractType = "fixed_price" | "hourly" | "monthly_retainer" | "full_time_monthly" | "internal";
 export type BillingStatus = "not_billable" | "unpaid" | "partially_paid" | "paid" | "overdue";
 export type BillingCycle = "monthly";
-export type PaymentStatus = "not_started" | "pending" | "paid" | "overdue";
+export type PaymentRecordStatus = "pending" | "paid" | "failed" | "cancelled";
 export type FeedbackCategory = "bug" | "idea" | "question" | "other";
 export type ProjectSortBy =
   | "id"
@@ -57,8 +57,14 @@ export interface DashboardSummary {
   monthly_contract_revenue_estimate: number;
   total_monthly_recurring_amount: number;
   paid_this_month_amount: number;
+  total_paid_amount: number;
   pending_payment_amount: number;
   overdue_payment_amount: number;
+  next_payment_due_date: string | null;
+  next_payment_due_amount: number | null;
+  next_payment_due_currency: string | null;
+  payment_summary_currency: string | null;
+  has_mixed_payment_currencies: boolean;
   active_monthly_contracts: number;
 }
 
@@ -86,6 +92,24 @@ export interface Task {
   updated_at: string;
 }
 
+export interface PaymentRecord {
+  id: number;
+  project_id: number;
+  invoice_id: number | null;
+  amount: string | number;
+  currency: string;
+  status: PaymentRecordStatus;
+  is_overdue: boolean;
+  method: string | null;
+  paid_at: string | null;
+  due_date: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Project {
   id: number;
   workspace_id: number;
@@ -99,7 +123,6 @@ export interface Project {
   contract_type: ContractType;
   billing_cycle: BillingCycle;
   billing_status: BillingStatus;
-  payment_status: PaymentStatus;
   billing_currency: string;
   currency: string;
   agreed_amount: string | number | null;
@@ -116,6 +139,7 @@ export interface Project {
   progress_percent: number;
   estimated_hours: number;
   actual_hours: number;
+  payment_records: PaymentRecord[];
   tasks: Task[];
 }
 
@@ -155,7 +179,6 @@ export interface ProjectCreatePayload {
   contract_type: ContractType;
   billing_cycle?: BillingCycle | null;
   billing_status?: BillingStatus | null;
-  payment_status?: PaymentStatus | null;
   billing_currency: string;
   currency?: string | null;
   agreed_amount?: number | null;
@@ -171,6 +194,21 @@ export interface ProjectCreatePayload {
 export interface ProjectUpdatePayload extends Partial<ProjectCreatePayload> {
   archived?: boolean;
 }
+
+export interface PaymentRecordCreatePayload {
+  amount: number;
+  currency: string;
+  status: PaymentRecordStatus;
+  method?: string | null;
+  paid_at?: string | null;
+  due_date?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  notes?: string | null;
+  invoice_id?: number | null;
+}
+
+export interface PaymentRecordUpdatePayload extends Partial<PaymentRecordCreatePayload> {}
 
 export interface TaskCreatePayload {
   title: string;

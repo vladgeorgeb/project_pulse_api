@@ -863,6 +863,84 @@ textarea:focus {
   color: var(--neutral-text);
 }
 
+.payment-pill.failed {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.payment-pill.cancelled {
+  background: var(--neutral-bg);
+  color: var(--neutral-text);
+}
+
+.payment-history {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  background: var(--surface-soft);
+}
+
+.payment-history-header,
+.payment-record-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.payment-history-header {
+  justify-content: space-between;
+}
+
+.payment-history-header strong {
+  display: block;
+}
+
+.payment-history-header span,
+.payment-record-main span,
+.payment-record-row p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.payment-record-list,
+.payment-record-form {
+  display: grid;
+  gap: 10px;
+}
+
+.payment-record-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--control-bg);
+}
+
+.payment-record-row p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.payment-record-form {
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--control-bg);
+}
+
+.payment-record-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--label);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .task-section {
   display: grid;
   gap: 14px;

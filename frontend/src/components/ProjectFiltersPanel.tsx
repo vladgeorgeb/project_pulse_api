@@ -16,7 +16,6 @@ const sortOptions: Array<{ value: ProjectSortBy; label: string }> = [
   { value: "title", label: "Title" },
   { value: "client_name", label: "Client" },
   { value: "budget_cents", label: "Budget" },
-  { value: "payment_status", label: "Payment" },
   { value: "created_at", label: "Created" },
   { value: "updated_at", label: "Updated" },
 ];

@@ -3,6 +3,8 @@ import { api, ApiError } from "./api/client";
 import type {
   DashboardSummary,
   FeedbackCategory,
+  PaymentRecordCreatePayload,
+  PaymentRecordUpdatePayload,
   Project,
   ProjectFilters,
   ProjectListResponse,
@@ -214,9 +216,7 @@ export default function App() {
           budget_cents: 5_500_00,
           hourly_rate_cents: 11_000,
           contract_type: "monthly_retainer",
-          billing_status: "unpaid",
           billing_currency: "USD",
-          monthly_rate: 5500,
           payment_due_day: 15,
           deadline: isoDate(28),
         }),
@@ -229,9 +229,7 @@ export default function App() {
           budget_cents: 2_400_00,
           hourly_rate_cents: 9_000,
           contract_type: "fixed_price",
-          billing_status: "partially_paid",
           billing_currency: "USD",
-          agreed_amount: 2400,
           deadline: isoDate(12),
         }),
         api.createProject(token!, {
@@ -243,9 +241,7 @@ export default function App() {
           budget_cents: 4_000_00,
           hourly_rate_cents: 10_000,
           contract_type: "hourly",
-          billing_status: "unpaid",
           billing_currency: "USD",
-          agreed_amount: 4000,
           deadline: isoDate(45),
         }),
       ]);
@@ -394,6 +390,18 @@ export default function App() {
             onCreateTask={(projectId, payload) => mutate(() => api.createTask(authToken, projectId, payload))}
             onUpdateProject={(projectId, payload: ProjectUpdatePayload) =>
               mutate(() => api.updateProject(authToken, projectId, payload), "Project updated.")
+            }
+            onCreatePaymentRecord={(projectId, payload: PaymentRecordCreatePayload) =>
+              mutate(() => api.createPaymentRecord(authToken, projectId, payload), "Payment record added.")
+            }
+            onUpdatePaymentRecord={(projectId, paymentRecordId, payload: PaymentRecordUpdatePayload) =>
+              mutate(
+                () => api.updatePaymentRecord(authToken, projectId, paymentRecordId, payload),
+                "Payment record updated.",
+              )
+            }
+            onDeletePaymentRecord={(projectId, paymentRecordId) =>
+              mutate(() => api.deletePaymentRecord(authToken, projectId, paymentRecordId))
             }
             onUpdateTask={(taskId, payload: TaskUpdatePayload) =>
               mutate(() => api.updateTask(authToken, taskId, payload), "Task updated.")
