@@ -35,8 +35,39 @@ def test_hourly_project_creation_and_derived_fields(client: TestClient) -> None:
     project = response.json()
     assert project["contract_type"] == "hourly"
     assert project["billing_currency"] == "USD"
+    assert project["expected_hours_per_week"] == "5.00"
     assert project["expected_weekly_income_cents"] == 14000
     assert project["expected_monthly_income_cents"] is not None
+
+
+def test_get_project_returns_project_detail(client: TestClient) -> None:
+    token = _register(client, "project-detail@example.com")
+    headers = _headers(token)
+    create_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Detail Project",
+            "client_name": "Acme",
+            "status": "active",
+            "contract_type": "hourly",
+            "hourly_rate_cents": 3250,
+            "expected_hours_per_week": 5.5,
+            "payment_cadence": "weekly",
+        },
+        headers=headers,
+    )
+    assert create_response.status_code == 201, create_response.text
+    created_project = create_response.json()
+
+    detail_response = client.get(
+        f"/api/v1/projects/{created_project['id']}",
+        headers=headers,
+    )
+    assert detail_response.status_code == 200, detail_response.text
+    detail_project = detail_response.json()
+    assert detail_project["id"] == created_project["id"]
+    assert detail_project["title"] == "Detail Project"
+    assert detail_project["expected_hours_per_week"] == "5.50"
 
 
 def test_contract_validation_rules(client: TestClient) -> None:

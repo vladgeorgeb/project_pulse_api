@@ -82,3 +82,63 @@ def test_payment_records_crud_and_validation(client: TestClient) -> None:
     assert summary["total_paid_amount"] == 700.0
     assert summary["pending_payment_amount"] == 350.0
     assert summary["next_payment_due_date"] == (today + timedelta(days=5)).isoformat()
+
+
+def test_payment_record_read_endpoints_and_isolation(client: TestClient) -> None:
+    owner_token = _register(client, "payments-owner@example.com")
+    other_token = _register(client, "payments-other@example.com")
+    owner_headers = _headers(owner_token)
+    other_headers = _headers(other_token)
+    project = _create_project(client, owner_token)
+
+    created_payment = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 42000,
+            "currency": "USD",
+            "status": "pending",
+            "due_date": (date.today() + timedelta(days=3)).isoformat(),
+        },
+        headers=owner_headers,
+    )
+    assert created_payment.status_code == 201, created_payment.text
+    payment_record = created_payment.json()
+
+    list_response = client.get(
+        f"/api/v1/projects/{project['id']}/payments",
+        headers=owner_headers,
+    )
+    assert list_response.status_code == 200, list_response.text
+    payments = list_response.json()
+    assert len(payments) == 1
+    assert payments[0]["id"] == payment_record["id"]
+
+    detail_response = client.get(
+        f"/api/v1/projects/{project['id']}/payments/{payment_record['id']}",
+        headers=owner_headers,
+    )
+    assert detail_response.status_code == 200, detail_response.text
+    assert detail_response.json()["id"] == payment_record["id"]
+    assert detail_response.json()["amount_cents"] == 42000
+
+    assert (
+        client.get(
+            f"/api/v1/projects/{project['id']}/payments",
+            headers=other_headers,
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            f"/api/v1/projects/{project['id']}/payments/{payment_record['id']}",
+            headers=other_headers,
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            f"/api/v1/projects/{project['id']}/payments/999999",
+            headers=owner_headers,
+        ).status_code
+        == 404
+    )
