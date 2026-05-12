@@ -1,4 +1,7 @@
 import type {
+  AccountExportResponse,
+  AdminFeedbackResponse,
+  CurrentUser,
   DashboardSummary,
   FeedbackCreatePayload,
   FeedbackResponse,
@@ -135,6 +138,10 @@ export const api = {
     });
   },
 
+  async getCurrentUser(token: string): Promise<CurrentUser> {
+    return request<CurrentUser>("/auth/me", token);
+  },
+
   async getWorkspace(token: string): Promise<Workspace> {
     return request<Workspace>("/workspaces/me", token);
   },
@@ -201,10 +208,6 @@ export const api = {
     await request<null>(`/projects/${projectId}`, token, { method: "DELETE" });
   },
 
-  async listPaymentRecords(token: string, projectId: number): Promise<PaymentRecord[]> {
-    return request<PaymentRecord[]>(`/projects/${projectId}/payments`, token);
-  },
-
   async createPaymentRecord(
     token: string,
     projectId: number,
@@ -262,5 +265,23 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+
+  async exportAccountData(token: string): Promise<AccountExportResponse> {
+    return request<AccountExportResponse>("/account/export", token);
+  },
+
+  async deleteAccount(token: string, password: string, confirmAdminSelfDeletion = false): Promise<void> {
+    await request<null>("/account", token, {
+      method: "DELETE",
+      body: JSON.stringify({
+        password,
+        confirm_admin_self_deletion: confirmAdminSelfDeletion,
+      }),
+    });
+  },
+
+  async listAdminFeedback(token: string): Promise<AdminFeedbackResponse[]> {
+    return request<AdminFeedbackResponse[]>("/admin/feedback", token);
   },
 };

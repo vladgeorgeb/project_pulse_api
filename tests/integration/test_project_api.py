@@ -57,7 +57,6 @@ def test_user_can_create_project_and_tasks(client: TestClient) -> None:
     assert project["billing_cycle"] == "monthly"
     assert project["billing_status"] == "unpaid"
     assert project["billing_currency"] == "USD"
-    assert project["currency"] == "USD"
     assert project["agreed_amount"] == "5000.00"
     assert project["tasks"] == []
     assert project["progress_percent"] == 0
@@ -261,7 +260,7 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
             "client_name": "Acme",
             "contract_type": "monthly_retainer",
             "monthly_rate": 2500,
-            "currency": "eur",
+            "billing_currency": "eur",
         },
         headers=headers,
     )
@@ -269,7 +268,6 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
     monthly_project = monthly_response.json()
     assert monthly_project["billing_cycle"] == "monthly"
     assert monthly_project["monthly_rate"] == "2500.00"
-    assert monthly_project["currency"] == "EUR"
     assert monthly_project["billing_currency"] == "EUR"
 
     update_with_legacy_monthly_rate = client.put(

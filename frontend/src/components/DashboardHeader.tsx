@@ -4,9 +4,12 @@ type Theme = "light" | "dark";
 
 interface DashboardHeaderProps {
   workspace: Workspace | null;
+  isAdmin: boolean;
   isLoading: boolean;
   isMutating: boolean;
   theme: Theme;
+  onOpenAccountSettings: () => void;
+  onOpenAdminFeedback: () => void;
   onToggleTheme: () => void;
   onOpenFeedback: () => void;
   onRefresh: () => void;
@@ -15,9 +18,12 @@ interface DashboardHeaderProps {
 
 export default function DashboardHeader({
   workspace,
+  isAdmin,
   isLoading,
   isMutating,
   theme,
+  onOpenAccountSettings,
+  onOpenAdminFeedback,
   onToggleTheme,
   onOpenFeedback,
   onRefresh,
@@ -34,6 +40,14 @@ export default function DashboardHeader({
       </div>
 
       <div className="header-actions">
+        <button type="button" className="secondary-button" onClick={onOpenAccountSettings}>
+          Account settings
+        </button>
+        {isAdmin ? (
+          <button type="button" className="secondary-button" onClick={onOpenAdminFeedback}>
+            Admin feedback
+          </button>
+        ) : null}
         <button type="button" className="secondary-button" onClick={onOpenFeedback}>
           Send feedback
         </button>

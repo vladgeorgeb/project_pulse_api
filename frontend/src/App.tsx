@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./api/client";
 import type {
+  AdminFeedbackResponse,
+  CurrentUser,
   DashboardSummary,
   FeedbackCategory,
   PaymentRecordCreatePayload,
@@ -13,6 +15,8 @@ import type {
   TaskUpdatePayload,
   Workspace,
 } from "./api/types";
+import AccountSettingsPanel from "./components/AccountSettingsPanel";
+import AdminFeedbackPanel from "./components/AdminFeedbackPanel";
 import AuthPage from "./components/AuthPage";
 import DashboardHeader from "./components/DashboardHeader";
 import EmailConfirmationPage from "./components/EmailConfirmationPage";
@@ -79,6 +83,12 @@ export default function App() {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [adminFeedback, setAdminFeedback] = useState<AdminFeedbackResponse[]>([]);
+  const [isLoadingAdminFeedback, setIsLoadingAdminFeedback] = useState(false);
+  const [adminFeedbackError, setAdminFeedbackError] = useState<string | null>(null);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showAdminFeedback, setShowAdminFeedback] = useState(false);
 
   const isAuthenticated = Boolean(token);
 
@@ -86,6 +96,11 @@ export default function App() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
     setState(initialDashboardState);
+    setCurrentUser(null);
+    setAdminFeedback([]);
+    setAdminFeedbackError(null);
+    setShowAccountSettings(false);
+    setShowAdminFeedback(false);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -94,12 +109,14 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const [workspace, summary, projectPage] = await Promise.all([
+      const [user, workspace, summary, projectPageData] = await Promise.all([
+        api.getCurrentUser(token),
         api.getWorkspace(token),
         api.getDashboardSummary(token),
         api.listProjects(token, filters),
       ]);
-      setState({ workspace, summary, projects: projectPage.items, projectPage });
+      setCurrentUser(user);
+      setState({ workspace, summary, projects: projectPageData.items, projectPage: projectPageData });
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -110,6 +127,24 @@ export default function App() {
       setIsLoading(false);
     }
   }, [clearAuthState, filters, token]);
+
+  const refreshAdminFeedback = useCallback(async () => {
+    if (!token) return;
+    setIsLoadingAdminFeedback(true);
+    setAdminFeedbackError(null);
+    try {
+      const items = await api.listAdminFeedback(token);
+      setAdminFeedback(items);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setAdminFeedback([]);
+        return;
+      }
+      setAdminFeedbackError(getErrorMessage(err));
+    } finally {
+      setIsLoadingAdminFeedback(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -162,6 +197,11 @@ export default function App() {
       sort_dir: "asc",
     });
     setError(null);
+    setCurrentUser(null);
+    setAdminFeedback([]);
+    setAdminFeedbackError(null);
+    setShowAccountSettings(false);
+    setShowAdminFeedback(false);
   }
 
   function updateFilters(nextFilters: ProjectFilters) {
@@ -282,6 +322,26 @@ export default function App() {
     }, "Demo data created. The dashboard was refreshed.");
   }
 
+  async function exportAccountData() {
+    if (!token) return;
+    const payload = await api.exportAccountData(token);
+    const exportDate = new Date().toISOString().slice(0, 10);
+    const fileName = `project-pulse-export-${exportDate}.json`;
+    const fileBlob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const fileUrl = URL.createObjectURL(fileBlob);
+    const anchor = document.createElement("a");
+    anchor.href = fileUrl;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(fileUrl);
+  }
+
+  async function deleteAccount(password: string, confirmAdminSelfDeletion: boolean) {
+    if (!token) return;
+    await api.deleteAccount(token, password, confirmAdminSelfDeletion);
+    clearAuthState();
+  }
+
   if (path === "/reset-password") {
     return <PasswordResetPage />;
   }
@@ -300,13 +360,28 @@ export default function App() {
 
   const authToken = token;
 
+  const isAdmin = currentUser?.is_admin ?? false;
+
   return (
     <main className="app-shell">
       <DashboardHeader
         workspace={state.workspace}
+        isAdmin={isAdmin}
         isLoading={isLoading}
         isMutating={isMutating}
         theme={theme}
+        onOpenAccountSettings={() => {
+          setShowAccountSettings((current) => !current);
+          if (showAdminFeedback) setShowAdminFeedback(false);
+        }}
+        onOpenAdminFeedback={() => {
+          setShowAdminFeedback((current) => {
+            const next = !current;
+            if (next) void refreshAdminFeedback();
+            return next;
+          });
+          if (showAccountSettings) setShowAccountSettings(false);
+        }}
         onToggleTheme={toggleTheme}
         onOpenFeedback={() => {
           setFeedbackStatus(null);
@@ -329,6 +404,29 @@ export default function App() {
       {error ? <div className="notice">{error}</div> : null}
 
       {state.summary ? <SummaryCards summary={state.summary} projects={state.projects} /> : null}
+
+      {showAccountSettings ? (
+        <section className="dashboard-grid">
+          <AccountSettingsPanel
+            isAdmin={isAdmin}
+            disabled={isMutating || isLoading}
+            onExport={exportAccountData}
+            onDeleteAccount={deleteAccount}
+          />
+        </section>
+      ) : null}
+
+      {showAdminFeedback && isAdmin ? (
+        <section className="dashboard-grid">
+          <AdminFeedbackPanel
+            feedbackItems={adminFeedback}
+            isLoading={isLoadingAdminFeedback}
+            error={adminFeedbackError}
+            disabled={isMutating || isLoading}
+            onRefresh={refreshAdminFeedback}
+          />
+        </section>
+      ) : null}
 
       <section className="dashboard-grid">
         <WorkspaceSettings

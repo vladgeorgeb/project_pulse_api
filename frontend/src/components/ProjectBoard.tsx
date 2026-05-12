@@ -92,7 +92,7 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
   const [budgetUsd, setBudgetUsd] = useState(centsToUsdInput(project.budget_cents));
   const [hourlyRateUsd, setHourlyRateUsd] = useState(centsToUsdInput(project.hourly_rate_cents));
   const [contractType, setContractType] = useState<ContractType>(project.contract_type);
-  const [currency, setCurrency] = useState(project.currency ?? project.billing_currency);
+  const [currency, setCurrency] = useState(project.billing_currency);
   const [deadline, setDeadline] = useState(project.deadline ?? "");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -108,7 +108,6 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
       hourly_rate_cents: usdToCents(hourlyRateUsd),
       contract_type: contractType,
       billing_currency: normalizedCurrency,
-      currency: normalizedCurrency,
       deadline: deadline || null,
       archived: status === "archived",
     });
@@ -199,7 +198,7 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
           </select>
         </label>
         <label>
-          Currency
+          Billing currency
           <input
             value={currency}
             onChange={(event) => setCurrency(event.target.value.toUpperCase().slice(0, 3))}

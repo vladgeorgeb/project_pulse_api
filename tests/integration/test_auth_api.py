@@ -88,6 +88,25 @@ def test_register_creates_email_confirmation_token(client: TestClient) -> None:
         assert auth_token.token_hash != raw_token
 
 
+def test_auth_me_returns_current_user_identity(client: TestClient) -> None:
+    register_response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "identity@example.com", "password": "strongpass123"},
+    )
+    assert register_response.status_code == 201, register_response.text
+    token = register_response.json()["access_token"]
+
+    me_response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert me_response.status_code == 200, me_response.text
+    body = me_response.json()
+    assert body["email"] == "identity@example.com"
+    assert body["is_admin"] is False
+    assert body["email_verified"] is False
+
+
 def test_confirm_email_marks_user_verified(client: TestClient) -> None:
     response = client.post(
         "/api/v1/auth/register",

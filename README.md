@@ -36,7 +36,7 @@ Projects track the operational and commercial state of client work:
 - deadline and archived state
 - contract type: `fixed_price`, `hourly`, `monthly_retainer`,
   `full_time_monthly`, `internal`
-- monthly billing fields: amount, currency, next payment due date, payment
+- monthly billing fields: amount, billing currency, next payment due date, payment
   status, and paid timestamp
 
 Project lists support pagination, allowlisted sorting, and filtering by status,
@@ -281,7 +281,6 @@ ADMIN_PASSWORD=change-this-local-admin-password123
 BACKEND_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 DOCS_ENABLED=true
 AUTO_CREATE_TABLES=true
-RUN_STARTUP_MIGRATIONS=true
 LOG_LEVEL=INFO
 AUTH_RATE_LIMIT_ENABLED=true
 AUTH_RATE_LIMIT_BACKEND=memory
@@ -375,6 +374,16 @@ Use the returned token in authenticated requests:
 ```http
 Authorization: Bearer <access_token>
 ```
+
+### Get Current User
+
+```http
+GET /api/v1/auth/me
+Authorization: Bearer <access_token>
+```
+
+The frontend calls this after login and on refresh to validate the token and
+load trusted identity fields, including `is_admin`.
 
 ### Request Password Reset
 
@@ -495,7 +504,7 @@ Content-Type: application/json
   "hourly_rate_cents": 10000,
   "contract_type": "monthly_retainer",
   "monthly_rate": 2500,
-  "currency": "USD",
+  "billing_currency": "USD",
   "deadline": "2026-12-31"
 }
 ```
@@ -625,6 +634,15 @@ User deletion by admins remains an explicit admin API operation on
 `DELETE /api/v1/admin/users/{user_id}`. The self-service account deletion
 endpoint has no user ID parameter and cannot be used to delete another account.
 
+For v1 UI scope, only the admin feedback review flow is surfaced in the
+frontend. Admin CRUD routes for users/workspaces/projects/tasks remain API-only
+internal operations.
+Admin feedback data is lazy-loaded only when an admin opens the admin feedback
+panel.
+
+`GET /api/v1/projects/{project_id}`, `GET /api/v1/projects/{project_id}/payments/{payment_record_id}`,
+and `GET /health` are intentionally API-only for now.
+
 ## Database and Migrations
 
 Local development may use SQLite. Production should use PostgreSQL.
@@ -724,7 +742,6 @@ ADMIN_PASSWORD=<generate-a-strong-admin-password>
 BACKEND_CORS_ORIGINS=https://your-vercel-app.vercel.app
 DOCS_ENABLED=false
 AUTO_CREATE_TABLES=false
-RUN_STARTUP_MIGRATIONS=false
 LOG_LEVEL=INFO
 AUTH_RATE_LIMIT_ENABLED=true
 AUTH_RATE_LIMIT_BACKEND=redis

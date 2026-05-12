@@ -4,11 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.exceptions import AuthenticationError, ConflictError, ValidationError
 from app.core.rate_limit import auth_rate_limiter
+from app.models.user import User
 from app.schemas.auth import (
+    CurrentUserResponse,
     EmailConfirmationRequest,
     EmailVerificationRequiredResponse,
     MessageResponse,
@@ -31,6 +34,18 @@ EMAIL_CONFIRMATION_MESSAGE = "Email address confirmed."
 EMAIL_VERIFICATION_REQUIRED_MESSAGE = (
     "Email verification is required before login. Please check your email."
 )
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+def get_current_account(
+    current_user: User = Depends(get_current_user),
+) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        is_admin=current_user.is_admin,
+        email_verified=current_user.email_verified,
+    )
 
 
 @router.post(

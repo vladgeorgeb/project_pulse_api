@@ -90,7 +90,3 @@ class Project(Base):
         cascade="all, delete-orphan",
         order_by="PaymentRecord.id",
     )
-
-    @property
-    def currency(self) -> str:
-        return self.billing_currency

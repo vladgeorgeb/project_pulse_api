@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
-
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-
-
-class UserLoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=1, max_length=128)
 
 
 class PasswordResetRequest(BaseModel):
@@ -42,11 +35,8 @@ class MessageResponse(BaseModel):
     message: str
 
 
-class UserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class CurrentUserResponse(BaseModel):
     id: int
     email: EmailStr
     is_admin: bool
     email_verified: bool
-    email_verified_at: datetime | None

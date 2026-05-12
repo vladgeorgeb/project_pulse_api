@@ -78,7 +78,6 @@ class AdminProjectResponse(BaseModel):
     billing_cycle: BillingCycle
     billing_status: BillingStatus
     billing_currency: str
-    currency: str
     agreed_amount: Decimal | None
     monthly_rate: Decimal | None
     billing_notes: str | None
@@ -101,7 +100,6 @@ class AdminProjectCreateRequest(BaseModel):
     billing_cycle: BillingCycle = BillingCycle.MONTHLY
     billing_status: BillingStatus = BillingStatus.UNPAID
     billing_currency: str = Field(default="USD", min_length=3, max_length=3)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
     agreed_amount: Decimal | None = Field(default=None, ge=0)
     monthly_rate: Decimal | None = Field(default=None, ge=0)
     billing_notes: str | None = Field(default=None, max_length=2_000)
@@ -109,9 +107,7 @@ class AdminProjectCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def normalize_billing(self) -> "AdminProjectCreateRequest":
-        currency = self.currency or self.billing_currency
-        self.currency = currency.upper()
-        self.billing_currency = self.currency
+        self.billing_currency = self.billing_currency.upper()
         if self.contract_type == ContractType.INTERNAL:
             self.billing_status = BillingStatus.NOT_BILLABLE
         return self
@@ -130,7 +126,6 @@ class AdminProjectUpdateRequest(BaseModel):
     billing_cycle: BillingCycle | None = None
     billing_status: BillingStatus | None = None
     billing_currency: str | None = Field(default=None, min_length=3, max_length=3)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
     agreed_amount: Decimal | None = Field(default=None, ge=0)
     monthly_rate: Decimal | None = Field(default=None, ge=0)
     billing_notes: str | None = Field(default=None, max_length=2_000)
@@ -139,10 +134,8 @@ class AdminProjectUpdateRequest(BaseModel):
 
     @model_validator(mode="after")
     def normalize_billing(self) -> "AdminProjectUpdateRequest":
-        currency = self.currency or self.billing_currency
-        if currency is not None:
-            self.currency = currency.upper()
-            self.billing_currency = self.currency
+        if self.billing_currency is not None:
+            self.billing_currency = self.billing_currency.upper()
         if self.contract_type == ContractType.INTERNAL:
             self.billing_status = BillingStatus.NOT_BILLABLE
         return self

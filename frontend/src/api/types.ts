@@ -35,6 +35,38 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface CurrentUser {
+  id: number;
+  email: string;
+  is_admin: boolean;
+  email_verified: boolean;
+}
+
+export interface AccountExportResponse {
+  schema_version: number;
+  exported_at: string;
+  account: {
+    id: number;
+    email: string;
+    is_admin: boolean;
+    email_verified: boolean;
+    email_verified_at: string | null;
+  };
+  business_profile: {
+    workspace_id: number;
+    workspace_name: string;
+    company_name: string;
+    monthly_capacity_hours: number;
+  } | null;
+  clients: Array<{ name: string; project_ids: number[] }>;
+  projects: Project[];
+  tasks: Task[];
+  billing: {
+    payment_records: PaymentRecord[];
+    invoices: Array<Record<string, unknown>>;
+  };
+}
+
 export interface DashboardSummary {
   workspace_id: number;
   total_projects: number;
@@ -122,7 +154,6 @@ export interface Project {
   billing_cycle: BillingCycle;
   billing_status: BillingStatus;
   billing_currency: string;
-  currency: string;
   agreed_amount: string | number | null;
   monthly_rate: string | number | null;
   billing_notes: string | null;
@@ -174,7 +205,6 @@ export interface ProjectCreatePayload {
   billing_cycle?: BillingCycle | null;
   billing_status?: BillingStatus | null;
   billing_currency: string;
-  currency?: string | null;
   agreed_amount?: number | null;
   monthly_rate?: number | null;
   billing_notes?: string | null;
@@ -225,4 +255,9 @@ export interface FeedbackResponse {
   page_url: string | null;
   status: "new" | "reviewed";
   created_at: string;
+}
+
+export interface AdminFeedbackResponse extends FeedbackResponse {
+  user_id: number | null;
+  user_agent: string | null;
 }

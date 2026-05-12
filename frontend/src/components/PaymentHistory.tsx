@@ -126,7 +126,7 @@ function PaymentRecordForm({
           />
         </label>
         <label>
-          Currency
+          Billing currency
           <select value={currency} onChange={(event) => setCurrency(event.target.value)} disabled={disabled}>
             {paymentCurrencies.map((item) => (
               <option key={item} value={item}>
@@ -246,8 +246,9 @@ export default function PaymentHistory({
           <strong>Payment history</strong>
           {hasRecords ? (
             <span>
-              {sortedPaymentRecords.length} records | {formatPaymentAmount(paidTotal, project.currency)} paid |{" "}
-              {formatPaymentAmount(pendingTotal, project.currency)} open
+              {sortedPaymentRecords.length} records |{" "}
+              {formatPaymentAmount(paidTotal, project.billing_currency)} paid |{" "}
+              {formatPaymentAmount(pendingTotal, project.billing_currency)} open
             </span>
           ) : (
             <span>No records tracked yet</span>
@@ -268,7 +269,7 @@ export default function PaymentHistory({
 
       {isAdding ? (
         <PaymentRecordForm
-          projectCurrency={project.currency}
+          projectCurrency={project.billing_currency}
           disabled={disabled}
           submitLabel="Add payment"
           onCancel={() => setIsAdding(false)}
@@ -304,7 +305,7 @@ export default function PaymentHistory({
               {isEditing ? (
                 <PaymentRecordForm
                   key={paymentRecord.id}
-                  projectCurrency={project.currency}
+                  projectCurrency={project.billing_currency}
                   disabled={disabled}
                   submitLabel="Save payment"
                   paymentRecord={paymentRecord}

@@ -23,7 +23,6 @@ def to_project_response(project: Project) -> ProjectResponse:
         billing_cycle=project.billing_cycle,
         billing_status=project.billing_status,
         billing_currency=project.billing_currency,
-        currency=project.billing_currency,
         agreed_amount=project.agreed_amount,
         monthly_rate=project.monthly_rate,
         billing_notes=project.billing_notes,

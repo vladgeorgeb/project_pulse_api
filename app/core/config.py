@@ -57,7 +57,6 @@ class Settings:
     cors_origins: tuple[str, ...]
     docs_enabled: bool
     auto_create_tables: bool
-    run_startup_migrations: bool
     log_level: str
     auth_rate_limit_enabled: bool
     auth_rate_limit_backend: RateLimitBackend
@@ -139,10 +138,6 @@ class Settings:
             docs_enabled=_get_bool_env("DOCS_ENABLED", environment != "production"),
             auto_create_tables=_get_bool_env(
                 "AUTO_CREATE_TABLES",
-                environment != "production",
-            ),
-            run_startup_migrations=_get_bool_env(
-                "RUN_STARTUP_MIGRATIONS",
                 environment != "production",
             ),
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),

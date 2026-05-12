@@ -1093,6 +1093,51 @@ textarea:focus {
   font-weight: 800;
 }
 
+.account-settings-panel,
+.admin-feedback-list {
+  display: grid;
+  gap: 12px;
+}
+
+.account-section {
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.account-section h3 {
+  margin: 0 0 8px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  gap: 10px;
+  align-items: center;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.danger-zone {
+  border-color: color-mix(in oklab, var(--danger-text) 40%, var(--panel-border));
+  background: color-mix(in oklab, var(--danger-bg) 45%, var(--surface-soft));
+}
+
+.admin-feedback-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.admin-feedback-item p {
+  margin: 0;
+}
+
 @media (max-width: 1180px) {
   .summary-groups,
   .project-board {

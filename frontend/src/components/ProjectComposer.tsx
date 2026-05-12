@@ -46,7 +46,6 @@ export default function ProjectComposer({ disabled, onCreate }: ProjectComposerP
       hourly_rate_cents: usdToCents(hourlyRateUsd),
       contract_type: contractType,
       billing_currency: normalizedCurrency,
-      currency: normalizedCurrency,
       deadline: deadline || null,
     });
 
@@ -165,7 +164,7 @@ export default function ProjectComposer({ disabled, onCreate }: ProjectComposerP
               </select>
             </label>
             <label>
-              Currency
+              Billing currency
               <input
                 value={currency}
                 onChange={(event) => setCurrency(event.target.value.toUpperCase().slice(0, 3))}
