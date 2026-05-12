@@ -105,8 +105,7 @@ class DashboardService:
             for payment_record in project.payment_records
         ]
         payment_currencies = {
-            payment_record.currency
-            for _, payment_record in payment_record_entries
+            payment_record.currency for _, payment_record in payment_record_entries
         }
         has_mixed_payment_currencies = len(payment_currencies) > 1
         payment_summary_currency = (
