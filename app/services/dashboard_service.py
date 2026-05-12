@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.domain.enums import (
+    ContractType,
     PaymentRecordStatus,
     ProjectStatus,
     TaskStatus,
@@ -65,8 +66,7 @@ class DashboardService:
             raise NotFoundError("Workspace not found.")
 
         projects = self.projects.list_for_workspace(
-            workspace_id=workspace.id,
-            include_archived=True,
+            workspace_id=workspace.id, include_archived=True
         )
         project_ids = [project.id for project in projects]
         overdue_tasks = self.tasks.list_overdue_for_projects(project_ids, date.today())
@@ -81,7 +81,7 @@ class DashboardService:
         estimated_minutes = sum(task.estimated_minutes for task in all_tasks)
         actual_minutes = sum(task.actual_minutes for task in all_tasks)
         billable_value_cents = sum(
-            (task.actual_minutes * project.hourly_rate_cents) // 60
+            (task.actual_minutes * (project.hourly_rate_cents or 0)) // 60
             for project in projects
             for task in project.tasks
         )
@@ -91,11 +91,41 @@ class DashboardService:
             if capacity_minutes > 0
             else 0
         )
+
         active_billable_projects = sum(
             1
             for project in projects
-            if not project.archived and is_project_open(project.status)
+            if not project.archived
+            and is_project_open(project.status)
+            and project.contract_type != ContractType.NON_BILLABLE.value
         )
+
+        monthly_contract_revenue_estimate_cents = 0
+        total_monthly_recurring_amount_cents = 0
+        active_monthly_contracts = 0
+        for project in projects:
+            if project.archived or not is_project_open(project.status):
+                continue
+            if project.contract_type == ContractType.HOURLY.value:
+                if (
+                    project.hourly_rate_cents is not None
+                    and project.expected_hours_per_week is not None
+                ):
+                    monthly_contract_revenue_estimate_cents += int(
+                        (
+                            Decimal(project.hourly_rate_cents)
+                            * project.expected_hours_per_week
+                            * Decimal("4.33")
+                        ).quantize(Decimal("1"))
+                    )
+            elif project.contract_type == ContractType.MONTHLY_RETAINER.value:
+                if project.monthly_rate_cents is not None:
+                    monthly_contract_revenue_estimate_cents += (
+                        project.monthly_rate_cents
+                    )
+                    total_monthly_recurring_amount_cents += project.monthly_rate_cents
+                    active_monthly_contracts += 1
+
         today = date.today()
         current_month = today.replace(day=1)
         payment_record_entries = [
@@ -111,6 +141,7 @@ class DashboardService:
         payment_summary_currency = (
             next(iter(payment_currencies)) if len(payment_currencies) == 1 else None
         )
+
         if has_mixed_payment_currencies:
             total_paid_amount = Decimal("0")
             paid_this_month_amount = Decimal("0")
@@ -120,7 +151,7 @@ class DashboardService:
         else:
             total_paid_amount = sum(
                 (
-                    payment_record.amount
+                    Decimal(payment_record.amount_cents) / Decimal("100")
                     for _, payment_record in payment_record_entries
                     if payment_record.status == PaymentRecordStatus.PAID.value
                 ),
@@ -128,7 +159,7 @@ class DashboardService:
             )
             paid_this_month_amount = sum(
                 (
-                    payment_record.amount
+                    Decimal(payment_record.amount_cents) / Decimal("100")
                     for _, payment_record in payment_record_entries
                     if payment_record.status == PaymentRecordStatus.PAID.value
                     and payment_record.paid_at is not None
@@ -138,7 +169,7 @@ class DashboardService:
             )
             pending_payment_amount = sum(
                 (
-                    payment_record.amount
+                    Decimal(payment_record.amount_cents) / Decimal("100")
                     for _, payment_record in payment_record_entries
                     if payment_record.status == PaymentRecordStatus.PENDING.value
                     and not self._is_payment_record_overdue(payment_record, today)
@@ -147,28 +178,30 @@ class DashboardService:
             )
             overdue_payment_amount = sum(
                 (
-                    payment_record.amount
+                    Decimal(payment_record.amount_cents) / Decimal("100")
                     for _, payment_record in payment_record_entries
                     if self._is_payment_record_overdue(payment_record, today)
                 ),
                 Decimal("0"),
             )
             next_due_amount = None
+
         record_due_candidates = [
             (
                 payment_record.due_date,
                 payment_record.id,
-                payment_record.amount,
+                payment_record.amount_cents,
                 payment_record.currency,
-                "record",
             )
             for _, payment_record in payment_record_entries
             if payment_record.due_date is not None
-            and self._is_payment_record_open(payment_record)
+            and payment_record.due_date >= today
+            and payment_record.status == PaymentRecordStatus.PENDING.value
         ]
         next_due = min(record_due_candidates, default=None)
         if next_due is not None and not has_mixed_payment_currencies:
-            next_due_amount = next_due[2]
+            next_due_amount = Decimal(next_due[2]) / Decimal("100")
+
         overdue_payments = sum(
             1
             for _, payment_record in payment_record_entries
@@ -217,8 +250,12 @@ class DashboardService:
             unpaid_projects=unpaid_projects,
             overdue_payments=overdue_payments,
             paid_projects=paid_projects,
-            monthly_contract_revenue_estimate=0.0,
-            total_monthly_recurring_amount=0.0,
+            monthly_contract_revenue_estimate=round(
+                monthly_contract_revenue_estimate_cents / 100, 2
+            ),
+            total_monthly_recurring_amount=round(
+                total_monthly_recurring_amount_cents / 100, 2
+            ),
             paid_this_month_amount=round(float(paid_this_month_amount), 2),
             total_paid_amount=round(float(total_paid_amount), 2),
             pending_payment_amount=round(float(pending_payment_amount), 2),
@@ -232,18 +269,12 @@ class DashboardService:
             next_payment_due_currency=next_due[3] if next_due is not None else None,
             payment_summary_currency=payment_summary_currency,
             has_mixed_payment_currencies=has_mixed_payment_currencies,
-            active_monthly_contracts=0,
+            active_monthly_contracts=active_monthly_contracts,
         )
-
-    def _is_payment_record_open(self, payment_record) -> bool:
-        return payment_record.status not in {
-            PaymentRecordStatus.PAID.value,
-            PaymentRecordStatus.CANCELLED.value,
-        }
 
     def _is_payment_record_overdue(self, payment_record, today: date) -> bool:
         return (
             payment_record.due_date is not None
             and payment_record.due_date < today
-            and self._is_payment_record_open(payment_record)
+            and payment_record.status == PaymentRecordStatus.PENDING.value
         )
