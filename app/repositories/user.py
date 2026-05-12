@@ -35,7 +35,10 @@ class UserRepository:
             .options(
                 selectinload(User.workspace)
                 .selectinload(Workspace.projects)
-                .selectinload(Project.tasks)
+                .selectinload(Project.tasks),
+                selectinload(User.workspace)
+                .selectinload(Workspace.projects)
+                .selectinload(Project.payment_records),
             )
             .where(User.id == user_id)
             .execution_options(populate_existing=True)

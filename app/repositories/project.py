@@ -52,7 +52,7 @@ class ProjectRepository:
     def list_all(self) -> list[Project]:
         stmt = (
             select(Project)
-            .options(joinedload(Project.tasks))
+            .options(joinedload(Project.tasks), joinedload(Project.payment_records))
             .order_by(Project.id)
             .execution_options(populate_existing=True)
         )
@@ -61,7 +61,7 @@ class ProjectRepository:
     def get_by_id(self, project_id: int) -> Project | None:
         stmt = (
             select(Project)
-            .options(joinedload(Project.tasks))
+            .options(joinedload(Project.tasks), joinedload(Project.payment_records))
             .where(Project.id == project_id)
             .execution_options(populate_existing=True)
         )
@@ -75,7 +75,7 @@ class ProjectRepository:
     ) -> Project | None:
         stmt = (
             select(Project)
-            .options(joinedload(Project.tasks))
+            .options(joinedload(Project.tasks), joinedload(Project.payment_records))
             .where(Project.id == project_id, Project.workspace_id == workspace_id)
             .execution_options(populate_existing=True)
         )
@@ -138,7 +138,7 @@ class ProjectRepository:
     ) -> PaginatedProjects:
         stmt: Select[tuple[Project]] = (
             select(Project)
-            .options(joinedload(Project.tasks))
+            .options(joinedload(Project.tasks), joinedload(Project.payment_records))
             .where(Project.workspace_id == workspace_id)
         )
         count_stmt = select(func.count(Project.id)).where(

@@ -16,8 +16,15 @@ from app.api.v1.projects import router as projects_router
 from app.api.v1.workspaces import router as workspaces_router
 from app.core.config import get_settings
 from app.core.database import SessionLocal, engine
-from app.core.migrations import ensure_project_billing_columns
-from app.models import AuthToken, Feedback, Project, Task, User, Workspace  # noqa: F401
+from app.models import (  # noqa: F401
+    AuthToken,
+    Feedback,
+    PaymentRecord,
+    Project,
+    Task,
+    User,
+    Workspace,
+)
 from app.models.base import Base
 from app.services.bootstrap_service import BootstrapService
 
@@ -35,8 +42,6 @@ async def lifespan(_: FastAPI):
     )
     if settings.auto_create_tables:
         Base.metadata.create_all(bind=engine)
-    if settings.run_startup_migrations and settings.database_url.startswith("sqlite"):
-        ensure_project_billing_columns(engine)
     db = SessionLocal()
     try:
         BootstrapService(db).ensure_admin_user()

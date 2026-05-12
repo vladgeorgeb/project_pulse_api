@@ -98,6 +98,12 @@ class Project(Base):
         cascade="all, delete-orphan",
         order_by="Task.id",
     )
+    payment_records = relationship(
+        "PaymentRecord",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="PaymentRecord.id",
+    )
 
     @property
     def currency(self) -> str:

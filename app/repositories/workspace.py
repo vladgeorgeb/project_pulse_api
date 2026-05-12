@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.project import Project
 from app.models.workspace import Workspace
 
 
@@ -41,7 +42,10 @@ class WorkspaceRepository:
     def get_by_user_id(self, user_id: int) -> Workspace | None:
         stmt = (
             select(Workspace)
-            .options(joinedload(Workspace.projects))
+            .options(
+                joinedload(Workspace.projects).joinedload(Project.tasks),
+                joinedload(Workspace.projects).joinedload(Project.payment_records),
+            )
             .where(Workspace.user_id == user_id)
             .execution_options(populate_existing=True)
         )
