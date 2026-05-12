@@ -16,7 +16,6 @@ from app.schemas.account import (
     AccountExportBillingData,
     AccountExportBusinessProfile,
     AccountExportClient,
-    AccountExportPaymentRecord,
     AccountExportResponse,
 )
 from app.schemas.project import PaymentRecordResponse, TaskResponse
@@ -66,9 +65,6 @@ class AccountService:
             projects=[to_project_response(project) for project in projects],
             tasks=[TaskResponse.model_validate(task) for task in tasks],
             billing=AccountExportBillingData(
-                project_payment_records=[
-                    self._payment_record_from_project(project) for project in projects
-                ],
                 payment_records=[
                     PaymentRecordResponse.model_validate(payment_record)
                     for payment_record in payment_records
@@ -109,24 +105,3 @@ class AccountService:
             AccountExportClient(name=client_name, project_ids=project_ids)
             for client_name, project_ids in clients.items()
         ]
-
-    def _payment_record_from_project(
-        self, project: Project
-    ) -> AccountExportPaymentRecord:
-        return AccountExportPaymentRecord(
-            project_id=project.id,
-            project_title=project.title,
-            client_name=project.client_name,
-            contract_type=project.contract_type,
-            billing_cycle=project.billing_cycle,
-            billing_status=project.billing_status,
-            payment_status=project.payment_status,
-            billing_currency=project.billing_currency,
-            agreed_amount=project.agreed_amount,
-            monthly_rate=project.monthly_rate,
-            monthly_amount=project.monthly_amount,
-            payment_due_day=project.payment_due_day,
-            next_payment_due_date=project.next_payment_due_date,
-            paid_at=project.paid_at,
-            billing_notes=project.billing_notes,
-        )

@@ -10,15 +10,9 @@ from app.domain.enums import (
     BillingCycle,
     BillingStatus,
     ContractType,
-    PaymentStatus,
     Priority,
     ProjectStatus,
     TaskStatus,
-)
-from app.schemas.project import (
-    MONTHLY_AMOUNT_REQUIRED_MESSAGE,
-    billing_status_to_payment_status,
-    payment_status_to_billing_status,
 )
 
 
@@ -83,15 +77,10 @@ class AdminProjectResponse(BaseModel):
     contract_type: ContractType
     billing_cycle: BillingCycle
     billing_status: BillingStatus
-    payment_status: PaymentStatus
     billing_currency: str
     currency: str
     agreed_amount: Decimal | None
     monthly_rate: Decimal | None
-    monthly_amount: Decimal | None
-    payment_due_day: int | None
-    next_payment_due_date: date | None
-    paid_at: datetime | None
     billing_notes: str | None
     deadline: date | None
     archived: bool
@@ -110,16 +99,11 @@ class AdminProjectCreateRequest(BaseModel):
     hourly_rate_cents: int = Field(default=0, ge=0, le=1_000_000)
     contract_type: ContractType = ContractType.FIXED_PRICE
     billing_cycle: BillingCycle = BillingCycle.MONTHLY
-    billing_status: BillingStatus | None = None
-    payment_status: PaymentStatus | None = None
+    billing_status: BillingStatus = BillingStatus.UNPAID
     billing_currency: str = Field(default="USD", min_length=3, max_length=3)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     agreed_amount: Decimal | None = Field(default=None, ge=0)
     monthly_rate: Decimal | None = Field(default=None, ge=0)
-    monthly_amount: Decimal | None = Field(default=None, ge=0)
-    payment_due_day: int | None = Field(default=None, ge=1, le=31)
-    next_payment_due_date: date | None = None
-    paid_at: datetime | None = None
     billing_notes: str | None = Field(default=None, max_length=2_000)
     deadline: date | None = None
 
@@ -128,29 +112,8 @@ class AdminProjectCreateRequest(BaseModel):
         currency = self.currency or self.billing_currency
         self.currency = currency.upper()
         self.billing_currency = self.currency
-        amount = (
-            self.monthly_amount
-            if self.monthly_amount is not None
-            else self.monthly_rate
-        )
-        self.monthly_amount = amount
-        self.monthly_rate = amount
         if self.contract_type == ContractType.INTERNAL:
             self.billing_status = BillingStatus.NOT_BILLABLE
-            self.payment_status = PaymentStatus.NOT_STARTED
-        elif self.payment_status is not None:
-            self.billing_status = payment_status_to_billing_status(self.payment_status)
-        elif self.billing_status is None:
-            self.billing_status = BillingStatus.UNPAID
-            self.payment_status = PaymentStatus.PENDING
-        else:
-            self.payment_status = billing_status_to_payment_status(self.billing_status)
-        if (
-            self.contract_type
-            in {ContractType.MONTHLY_RETAINER, ContractType.FULL_TIME_MONTHLY}
-            and self.monthly_amount is None
-        ):
-            raise ValueError(MONTHLY_AMOUNT_REQUIRED_MESSAGE)
         return self
 
 
@@ -166,15 +129,10 @@ class AdminProjectUpdateRequest(BaseModel):
     contract_type: ContractType | None = None
     billing_cycle: BillingCycle | None = None
     billing_status: BillingStatus | None = None
-    payment_status: PaymentStatus | None = None
     billing_currency: str | None = Field(default=None, min_length=3, max_length=3)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     agreed_amount: Decimal | None = Field(default=None, ge=0)
     monthly_rate: Decimal | None = Field(default=None, ge=0)
-    monthly_amount: Decimal | None = Field(default=None, ge=0)
-    payment_due_day: int | None = Field(default=None, ge=1, le=31)
-    next_payment_due_date: date | None = None
-    paid_at: datetime | None = None
     billing_notes: str | None = Field(default=None, max_length=2_000)
     deadline: date | None = None
     archived: bool | None = None
@@ -185,19 +143,8 @@ class AdminProjectUpdateRequest(BaseModel):
         if currency is not None:
             self.currency = currency.upper()
             self.billing_currency = self.currency
-        amount = (
-            self.monthly_amount
-            if self.monthly_amount is not None
-            else self.monthly_rate
-        )
-        if amount is not None:
-            self.monthly_amount = amount
-            self.monthly_rate = amount
         if self.contract_type == ContractType.INTERNAL:
             self.billing_status = BillingStatus.NOT_BILLABLE
-            self.payment_status = PaymentStatus.NOT_STARTED
-        elif self.payment_status is not None:
-            self.billing_status = payment_status_to_billing_status(self.payment_status)
         return self
 
 

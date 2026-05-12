@@ -223,7 +223,7 @@ def test_dashboard_payment_metrics_use_payment_history(client: TestClient) -> No
     assert summary["total_monthly_recurring_amount"] == 0.0
 
 
-def test_dashboard_ignores_project_payment_fields_without_payment_records(
+def test_dashboard_ignores_project_contract_fields_without_payment_records(
     client: TestClient,
 ) -> None:
     token = _register(client)
@@ -234,9 +234,7 @@ def test_dashboard_ignores_project_payment_fields_without_payment_records(
         "Project fields only",
         status="active",
         contract_type="monthly_retainer",
-        monthly_amount=1500,
-        payment_status="pending",
-        next_payment_due_date=(date.today() + timedelta(days=7)).isoformat(),
+        monthly_rate=1500,
     )
 
     project_response = client.get(f"/api/v1/projects/{project['id']}", headers=headers)
@@ -253,7 +251,7 @@ def test_dashboard_ignores_project_payment_fields_without_payment_records(
     assert summary["next_payment_due_amount"] is None
 
 
-def test_dashboard_uses_payment_records_instead_of_project_amounts(
+def test_dashboard_uses_payment_records_instead_of_project_contract_amounts(
     client: TestClient,
 ) -> None:
     token = _register(client)
@@ -264,8 +262,7 @@ def test_dashboard_uses_payment_records_instead_of_project_amounts(
         "Record backed billing",
         status="active",
         contract_type="monthly_retainer",
-        monthly_amount=2500,
-        payment_status="pending",
+        monthly_rate=2500,
     )
     response = client.post(
         f"/api/v1/projects/{project['id']}/payments",

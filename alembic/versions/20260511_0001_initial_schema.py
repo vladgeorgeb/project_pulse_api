@@ -149,16 +149,6 @@ def upgrade() -> None:
         ),
         sa.Column("agreed_amount", sa.Numeric(12, 2), nullable=True),
         sa.Column("monthly_rate", sa.Numeric(12, 2), nullable=True),
-        sa.Column("monthly_amount", sa.Numeric(12, 2), nullable=True),
-        sa.Column("payment_due_day", sa.Integer(), nullable=True),
-        sa.Column("next_payment_due_date", sa.Date(), nullable=True),
-        sa.Column(
-            "payment_status",
-            sa.String(length=32),
-            server_default="pending",
-            nullable=False,
-        ),
-        sa.Column("paid_at", sa.DateTime(), nullable=True),
         sa.Column("billing_notes", sa.Text(), nullable=True),
         sa.Column("deadline", sa.Date(), nullable=True),
         sa.Column("archived", sa.Boolean(), server_default=sa.false(), nullable=False),
@@ -198,12 +188,6 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(op.f("ix_projects_id"), "projects", ["id"], unique=False)
-    op.create_index(
-        op.f("ix_projects_payment_status"),
-        "projects",
-        ["payment_status"],
-        unique=False,
-    )
     op.create_index(
         op.f("ix_projects_priority"),
         "projects",
@@ -268,8 +252,68 @@ def upgrade() -> None:
     op.create_index(op.f("ix_tasks_status"), "tasks", ["status"], unique=False)
     op.create_index(op.f("ix_tasks_title"), "tasks", ["title"], unique=False)
 
+    op.create_table(
+        "payment_records",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("project_id", sa.Integer(), nullable=False),
+        sa.Column("invoice_id", sa.Integer(), nullable=True),
+        sa.Column("amount", sa.Numeric(12, 2), nullable=False),
+        sa.Column(
+            "currency", sa.String(length=3), server_default="USD", nullable=False
+        ),
+        sa.Column(
+            "status",
+            sa.String(length=32),
+            server_default="pending",
+            nullable=False,
+        ),
+        sa.Column("method", sa.String(length=80), nullable=True),
+        sa.Column("paid_at", sa.DateTime(), nullable=True),
+        sa.Column("due_date", sa.Date(), nullable=True),
+        sa.Column("period_start", sa.Date(), nullable=True),
+        sa.Column("period_end", sa.Date(), nullable=True),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_payment_records_due_date"),
+        "payment_records",
+        ["due_date"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_payment_records_id"), "payment_records", ["id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_payment_records_invoice_id"),
+        "payment_records",
+        ["invoice_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_payment_records_project_id"),
+        "payment_records",
+        ["project_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_payment_records_status"),
+        "payment_records",
+        ["status"],
+        unique=False,
+    )
+
 
 def downgrade() -> None:
+    op.drop_index(op.f("ix_payment_records_status"), table_name="payment_records")
+    op.drop_index(op.f("ix_payment_records_project_id"), table_name="payment_records")
+    op.drop_index(op.f("ix_payment_records_invoice_id"), table_name="payment_records")
+    op.drop_index(op.f("ix_payment_records_id"), table_name="payment_records")
+    op.drop_index(op.f("ix_payment_records_due_date"), table_name="payment_records")
+    op.drop_table("payment_records")
     op.drop_index(op.f("ix_tasks_title"), table_name="tasks")
     op.drop_index(op.f("ix_tasks_status"), table_name="tasks")
     op.drop_index(op.f("ix_tasks_project_id"), table_name="tasks")
@@ -281,7 +325,6 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_projects_title"), table_name="projects")
     op.drop_index(op.f("ix_projects_status"), table_name="projects")
     op.drop_index(op.f("ix_projects_priority"), table_name="projects")
-    op.drop_index(op.f("ix_projects_payment_status"), table_name="projects")
     op.drop_index(op.f("ix_projects_id"), table_name="projects")
     op.drop_index(op.f("ix_projects_deadline"), table_name="projects")
     op.drop_index(op.f("ix_projects_contract_type"), table_name="projects")

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
@@ -29,26 +28,7 @@ class AccountExportClient(BaseModel):
     project_ids: list[int]
 
 
-class AccountExportPaymentRecord(BaseModel):
-    project_id: int
-    project_title: str
-    client_name: str
-    contract_type: str
-    billing_cycle: str
-    billing_status: str
-    payment_status: str
-    billing_currency: str
-    agreed_amount: Decimal | None
-    monthly_rate: Decimal | None
-    monthly_amount: Decimal | None
-    payment_due_day: int | None
-    next_payment_due_date: date | None
-    paid_at: datetime | None
-    billing_notes: str | None
-
-
 class AccountExportBillingData(BaseModel):
-    project_payment_records: list[AccountExportPaymentRecord]
     payment_records: list[PaymentRecordResponse] = Field(default_factory=list)
     invoices: list[dict[str, Any]] = Field(default_factory=list)
 

@@ -31,13 +31,6 @@ class BillingStatus(StrEnum):
     OVERDUE = "overdue"
 
 
-class PaymentStatus(StrEnum):
-    NOT_STARTED = "not_started"
-    PENDING = "pending"
-    PAID = "paid"
-    OVERDUE = "overdue"
-
-
 class PaymentRecordStatus(StrEnum):
     PENDING = "pending"
     PAID = "paid"

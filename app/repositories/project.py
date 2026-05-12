@@ -33,8 +33,6 @@ PROJECT_SORT_COLUMNS = {
     "deadline": Project.deadline,
     "created_at": Project.created_at,
     "updated_at": Project.updated_at,
-    "payment_status": Project.payment_status,
-    "next_payment_due_date": Project.next_payment_due_date,
 }
 
 

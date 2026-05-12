@@ -45,7 +45,6 @@ def test_user_can_create_project_and_tasks(client: TestClient) -> None:
             "billing_status": "unpaid",
             "billing_currency": "usd",
             "agreed_amount": 5000,
-            "payment_due_day": 15,
             "billing_notes": "Bill after acceptance.",
             "deadline": "2026-06-30",
         },
@@ -57,11 +56,9 @@ def test_user_can_create_project_and_tasks(client: TestClient) -> None:
     assert project["contract_type"] == "fixed_price"
     assert project["billing_cycle"] == "monthly"
     assert project["billing_status"] == "unpaid"
-    assert project["payment_status"] == "pending"
     assert project["billing_currency"] == "USD"
     assert project["currency"] == "USD"
     assert project["agreed_amount"] == "5000.00"
-    assert project["payment_due_day"] == 15
     assert project["tasks"] == []
     assert project["progress_percent"] == 0
 
@@ -145,9 +142,7 @@ def test_project_filters_and_dashboard_summary(client: TestClient) -> None:
             "status": "active",
             "priority": "medium",
             "contract_type": "full_time_monthly",
-            "monthly_amount": 2000,
-            "payment_status": "paid",
-            "next_payment_due_date": "2026-05-15",
+            "monthly_rate": 2000,
         },
         headers=headers,
     )
@@ -160,9 +155,7 @@ def test_project_filters_and_dashboard_summary(client: TestClient) -> None:
             "status": "active",
             "priority": "medium",
             "contract_type": "monthly_retainer",
-            "monthly_amount": 1500,
-            "payment_status": "overdue",
-            "next_payment_due_date": "2026-05-01",
+            "monthly_rate": 1500,
         },
         headers=headers,
     )
@@ -259,7 +252,6 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
     internal_project = internal_response.json()
     assert internal_project["contract_type"] == "internal"
     assert internal_project["billing_status"] == "not_billable"
-    assert internal_project["payment_status"] == "not_started"
     assert internal_project["billing_currency"] == "USD"
 
     monthly_response = client.post(
@@ -268,42 +260,17 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
             "title": "Monthly Ops",
             "client_name": "Acme",
             "contract_type": "monthly_retainer",
-            "monthly_amount": 2500,
+            "monthly_rate": 2500,
             "currency": "eur",
-            "next_payment_due_date": "2026-06-15",
-            "payment_status": "pending",
         },
         headers=headers,
     )
     assert monthly_response.status_code == 201, monthly_response.text
     monthly_project = monthly_response.json()
     assert monthly_project["billing_cycle"] == "monthly"
-    assert monthly_project["monthly_amount"] == "2500.00"
     assert monthly_project["monthly_rate"] == "2500.00"
     assert monthly_project["currency"] == "EUR"
     assert monthly_project["billing_currency"] == "EUR"
-    assert monthly_project["next_payment_due_date"] == "2026-06-15"
-    assert monthly_project["payment_status"] == "pending"
-
-    missing_monthly_amount = client.post(
-        "/api/v1/projects",
-        json={
-            "title": "Missing Monthly Amount",
-            "client_name": "Acme",
-            "contract_type": "full_time_monthly",
-        },
-        headers=headers,
-    )
-    assert missing_monthly_amount.status_code == 201
-
-    update_without_monthly_amount = client.put(
-        f"/api/v1/projects/{internal_project['id']}",
-        json={
-            "contract_type": "monthly_retainer",
-        },
-        headers=headers,
-    )
-    assert update_without_monthly_amount.status_code == 200
 
     update_with_legacy_monthly_rate = client.put(
         f"/api/v1/projects/{internal_project['id']}",
@@ -316,20 +283,8 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
     )
     assert update_with_legacy_monthly_rate.status_code == 200
     updated_project = update_with_legacy_monthly_rate.json()
-    assert updated_project["monthly_amount"] == "1800.00"
+    assert updated_project["monthly_rate"] == "1800.00"
     assert updated_project["billing_status"] == "partially_paid"
-    assert updated_project["payment_status"] == "pending"
-
-    invalid_due_day = client.post(
-        "/api/v1/projects",
-        json={
-            "title": "Invalid billing day",
-            "client_name": "Acme",
-            "payment_due_day": 32,
-        },
-        headers=headers,
-    )
-    assert invalid_due_day.status_code == 422
 
     invalid_amount = client.post(
         "/api/v1/projects",

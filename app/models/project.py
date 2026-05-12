@@ -20,7 +20,6 @@ from app.domain.enums import (
     BillingCycle,
     BillingStatus,
     ContractType,
-    PaymentStatus,
     Priority,
     ProjectStatus,
 )
@@ -70,19 +69,6 @@ class Project(Base):
     )
     agreed_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     monthly_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    monthly_amount: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
-    payment_due_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    next_payment_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    payment_status: Mapped[str] = mapped_column(
-        String(32),
-        nullable=False,
-        default=PaymentStatus.PENDING.value,
-        server_default=PaymentStatus.PENDING.value,
-        index=True,
-    )
-    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     billing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     deadline: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     archived: Mapped[bool] = mapped_column(

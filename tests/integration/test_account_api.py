@@ -56,9 +56,7 @@ def test_user_can_export_only_their_own_account_data(client: TestClient) -> None
         "Exported Retainer",
         client_name="Acme",
         contract_type="monthly_retainer",
-        monthly_amount=2500,
-        payment_status="paid",
-        next_payment_due_date="2026-05-31",
+        monthly_rate=2500,
         billing_notes="Paid by wire.",
     )
     _create_project(client, second_token, "Other User Project", client_name="Other")
@@ -84,10 +82,7 @@ def test_user_can_export_only_their_own_account_data(client: TestClient) -> None
     assert export["clients"] == [{"name": "Acme", "project_ids": [first_project["id"]]}]
     assert [project["title"] for project in export["projects"]] == ["Exported Retainer"]
     assert [task["title"] for task in export["tasks"]] == ["Export task"]
-    assert (
-        export["billing"]["project_payment_records"][0]["monthly_amount"] == "2500.00"
-    )
-    assert export["billing"]["project_payment_records"][0]["payment_status"] == "paid"
+    assert len(export["billing"]["payment_records"]) == 0
     assert export["billing"]["invoices"] == []
     assert "Other User Project" not in response.text
 

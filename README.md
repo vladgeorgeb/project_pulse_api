@@ -494,10 +494,8 @@ Content-Type: application/json
   "budget_cents": 500000,
   "hourly_rate_cents": 10000,
   "contract_type": "monthly_retainer",
-  "monthly_amount": 2500,
+  "monthly_rate": 2500,
   "currency": "USD",
-  "payment_status": "pending",
-  "next_payment_due_date": "2026-06-15",
   "deadline": "2026-12-31"
 }
 ```
@@ -569,7 +567,7 @@ Supported list query parameters:
 
 Supported `sort_by` values are `id`, `title`, `client_name`, `status`,
 `priority`, `budget_cents`, `hourly_rate_cents`, `deadline`, `created_at`,
-`updated_at`, `payment_status`, and `next_payment_due_date`. Priority sorting
+and `updated_at`. Priority sorting
 uses the project priority rank `urgent`, `high`, `medium`, `low`, with deadline
 as a secondary sort.
 

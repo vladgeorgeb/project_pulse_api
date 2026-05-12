@@ -9,32 +9,12 @@ from app.core.exceptions import (
     BusinessRuleError,
     NotFoundError,
 )
-from app.domain.enums import BillingStatus, ContractType, PaymentStatus, ProjectStatus
+from app.domain.enums import BillingStatus, ContractType, ProjectStatus
 from app.domain.project_rules import validate_project_completion
 from app.models.project import Project
 from app.models.user import User
 from app.repositories.project import PaginatedProjects, ProjectRepository
 from app.repositories.workspace import WorkspaceRepository
-
-
-def _billing_status_for_payment_status(payment_status: str) -> str:
-    if payment_status == PaymentStatus.PAID.value:
-        return BillingStatus.PAID.value
-    if payment_status == PaymentStatus.OVERDUE.value:
-        return BillingStatus.OVERDUE.value
-    if payment_status == PaymentStatus.NOT_STARTED.value:
-        return BillingStatus.NOT_BILLABLE.value
-    return BillingStatus.UNPAID.value
-
-
-def _payment_status_for_billing_status(billing_status: str) -> str:
-    if billing_status == BillingStatus.PAID.value:
-        return PaymentStatus.PAID.value
-    if billing_status == BillingStatus.OVERDUE.value:
-        return PaymentStatus.OVERDUE.value
-    if billing_status == BillingStatus.NOT_BILLABLE.value:
-        return PaymentStatus.NOT_STARTED.value
-    return PaymentStatus.PENDING.value
 
 
 class ProjectService:
@@ -137,23 +117,15 @@ class ProjectService:
         contract_type: str,
         billing_cycle: str,
         billing_status: str,
-        payment_status: str,
         billing_currency: str,
         agreed_amount: Decimal | None,
         monthly_rate: Decimal | None,
-        monthly_amount: Decimal | None,
-        payment_due_day: int | None,
-        next_payment_due_date: date | None,
-        paid_at: datetime | None,
         billing_notes: str | None,
         deadline: date | None,
     ) -> Project:
         workspace = self._workspace_for_user(user)
         if contract_type == ContractType.INTERNAL.value:
             billing_status = BillingStatus.NOT_BILLABLE.value
-            payment_status = PaymentStatus.NOT_STARTED.value
-        if payment_status == PaymentStatus.PAID.value and paid_at is None:
-            paid_at = datetime.now(UTC).replace(tzinfo=None)
         now = datetime.now(UTC).replace(tzinfo=None)
         project = Project(
             workspace_id=workspace.id,
@@ -167,14 +139,9 @@ class ProjectService:
             contract_type=contract_type,
             billing_cycle=billing_cycle,
             billing_status=billing_status,
-            payment_status=payment_status,
             billing_currency=billing_currency.strip().upper(),
             agreed_amount=agreed_amount,
-            monthly_rate=monthly_rate if monthly_rate is not None else monthly_amount,
-            monthly_amount=monthly_amount,
-            payment_due_day=payment_due_day,
-            next_payment_due_date=next_payment_due_date,
-            paid_at=paid_at,
+            monthly_rate=monthly_rate,
             billing_notes=billing_notes.strip() if billing_notes else None,
             deadline=deadline,
             archived=status == ProjectStatus.ARCHIVED.value,
@@ -207,20 +174,11 @@ class ProjectService:
         contract_type: str | None,
         billing_cycle: str | None,
         billing_status: str | None,
-        payment_status: str | None,
         billing_currency: str | None,
         agreed_amount: Decimal | None,
         agreed_amount_provided: bool,
         monthly_rate: Decimal | None,
         monthly_rate_provided: bool,
-        monthly_amount: Decimal | None,
-        monthly_amount_provided: bool,
-        payment_due_day: int | None,
-        payment_due_day_provided: bool,
-        next_payment_due_date: date | None,
-        next_payment_due_date_provided: bool,
-        paid_at: datetime | None,
-        paid_at_provided: bool,
         billing_notes: str | None,
         billing_notes_provided: bool,
         deadline: date | None,
@@ -257,40 +215,16 @@ class ProjectService:
             project.contract_type = contract_type
             if contract_type == ContractType.INTERNAL.value:
                 project.billing_status = BillingStatus.NOT_BILLABLE.value
-                project.payment_status = PaymentStatus.NOT_STARTED.value
         if billing_cycle is not None:
             project.billing_cycle = billing_cycle
         if billing_status is not None:
             project.billing_status = billing_status
-            if payment_status is None:
-                project.payment_status = _payment_status_for_billing_status(
-                    billing_status
-                )
-        if payment_status is not None:
-            project.payment_status = payment_status
-            project.billing_status = _billing_status_for_payment_status(payment_status)
-            if payment_status == PaymentStatus.PAID.value and not paid_at_provided:
-                project.paid_at = datetime.now(UTC).replace(tzinfo=None)
-            elif payment_status != PaymentStatus.PAID.value and not paid_at_provided:
-                project.paid_at = None
         if billing_currency is not None:
             project.billing_currency = billing_currency.strip().upper()
         if agreed_amount_provided:
             project.agreed_amount = agreed_amount
         if monthly_rate_provided:
             project.monthly_rate = monthly_rate
-            if not monthly_amount_provided:
-                project.monthly_amount = monthly_rate
-        if monthly_amount_provided:
-            project.monthly_amount = monthly_amount
-            if not monthly_rate_provided:
-                project.monthly_rate = monthly_amount
-        if payment_due_day_provided:
-            project.payment_due_day = payment_due_day
-        if next_payment_due_date_provided:
-            project.next_payment_due_date = next_payment_due_date
-        if paid_at_provided:
-            project.paid_at = paid_at
         if billing_notes_provided:
             project.billing_notes = billing_notes.strip() if billing_notes else None
         if deadline is not None:

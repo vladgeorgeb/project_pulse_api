@@ -217,7 +217,6 @@ export default function App() {
           hourly_rate_cents: 11_000,
           contract_type: "monthly_retainer",
           billing_currency: "USD",
-          payment_due_day: 15,
           deadline: isoDate(28),
         }),
         api.createProject(token!, {

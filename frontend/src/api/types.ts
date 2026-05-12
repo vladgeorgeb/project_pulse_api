@@ -16,9 +16,7 @@ export type ProjectSortBy =
   | "hourly_rate_cents"
   | "deadline"
   | "created_at"
-  | "updated_at"
-  | "payment_status"
-  | "next_payment_due_date";
+  | "updated_at";
 export type SortDir = "asc" | "desc";
 
 export interface TokenResponse {
@@ -127,10 +125,6 @@ export interface Project {
   currency: string;
   agreed_amount: string | number | null;
   monthly_rate: string | number | null;
-  monthly_amount: string | number | null;
-  payment_due_day: number | null;
-  next_payment_due_date: string | null;
-  paid_at: string | null;
   billing_notes: string | null;
   deadline: string | null;
   archived: boolean;
@@ -183,10 +177,6 @@ export interface ProjectCreatePayload {
   currency?: string | null;
   agreed_amount?: number | null;
   monthly_rate?: number | null;
-  monthly_amount?: number | null;
-  payment_due_day?: number | null;
-  next_payment_due_date?: string | null;
-  paid_at?: string | null;
   billing_notes?: string | null;
   deadline?: string | null;
 }

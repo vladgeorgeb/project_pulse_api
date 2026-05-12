@@ -65,8 +65,6 @@ def list_projects(
         "deadline",
         "created_at",
         "updated_at",
-        "payment_status",
-        "next_payment_due_date",
     ] = Query(default="priority"),
     sort_dir: Literal["asc", "desc"] = Query(default="asc"),
     db: Session = Depends(get_db),
@@ -145,14 +143,9 @@ def create_project(
             contract_type=payload.contract_type.value,
             billing_cycle=payload.billing_cycle.value,
             billing_status=payload.billing_status.value,
-            payment_status=payload.payment_status.value,
             billing_currency=payload.billing_currency,
             agreed_amount=payload.agreed_amount,
             monthly_rate=payload.monthly_rate,
-            monthly_amount=payload.monthly_amount,
-            payment_due_day=payload.payment_due_day,
-            next_payment_due_date=payload.next_payment_due_date,
-            paid_at=payload.paid_at,
             billing_notes=payload.billing_notes,
             deadline=payload.deadline,
         )
@@ -354,27 +347,11 @@ def update_project(
                 if payload.billing_status is not None
                 else None
             ),
-            payment_status=(
-                payload.payment_status.value
-                if payload.payment_status is not None
-                and "payment_status" in payload.model_fields_set
-                else None
-            ),
             billing_currency=payload.billing_currency,
             agreed_amount=payload.agreed_amount,
             agreed_amount_provided="agreed_amount" in payload.model_fields_set,
             monthly_rate=payload.monthly_rate,
             monthly_rate_provided="monthly_rate" in payload.model_fields_set,
-            monthly_amount=payload.monthly_amount,
-            monthly_amount_provided="monthly_amount" in payload.model_fields_set,
-            payment_due_day=payload.payment_due_day,
-            payment_due_day_provided="payment_due_day" in payload.model_fields_set,
-            next_payment_due_date=payload.next_payment_due_date,
-            next_payment_due_date_provided=(
-                "next_payment_due_date" in payload.model_fields_set
-            ),
-            paid_at=payload.paid_at,
-            paid_at_provided="paid_at" in payload.model_fields_set,
             billing_notes=payload.billing_notes,
             billing_notes_provided="billing_notes" in payload.model_fields_set,
             deadline=payload.deadline,
