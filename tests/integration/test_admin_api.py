@@ -60,8 +60,9 @@ def test_admin_can_create_project_and_task(client: TestClient) -> None:
             "client_name": "Admin Client",
             "status": "active",
             "priority": "medium",
-            "budget_cents": 250_000,
-            "hourly_rate_cents": 9_000,
+            "contract_type": "hourly",
+            "hourly_rate_cents": 9000,
+            "payment_cadence": "weekly",
         },
         headers=headers,
     )
@@ -104,6 +105,9 @@ def test_admin_can_update_workspace_and_project(client: TestClient) -> None:
             "workspace_id": workspace["id"],
             "title": "Needs Update",
             "client_name": "Admin",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 150000,
+            "payment_cadence": "milestone",
         },
         headers=headers,
     )
@@ -111,13 +115,13 @@ def test_admin_can_update_workspace_and_project(client: TestClient) -> None:
 
     update_project_response = client.put(
         f"/api/v1/admin/projects/{project_response.json()['id']}",
-        json={"status": "active", "priority": "urgent", "budget_cents": 900_000},
+        json={"status": "active", "priority": "urgent", "hourly_rate_cents": 10000},
         headers=headers,
     )
     assert update_project_response.status_code == 200, update_project_response.text
     assert update_project_response.json()["status"] == "active"
     assert update_project_response.json()["priority"] == "urgent"
-    assert update_project_response.json()["budget_cents"] == 900_000
+    assert update_project_response.json()["hourly_rate_cents"] == 10000
 
 
 def test_non_admin_gets_403_on_admin_routes(client: TestClient) -> None:

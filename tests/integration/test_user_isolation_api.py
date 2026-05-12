@@ -22,7 +22,13 @@ def _headers(token: str) -> dict[str, str]:
 def _create_project(client: TestClient, token: str, title: str) -> dict:
     response = client.post(
         "/api/v1/projects",
-        json={"title": title, "client_name": title},
+        json={
+            "title": title,
+            "client_name": title,
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+        },
         headers=_headers(token),
     )
     assert response.status_code == 201, response.text
@@ -135,7 +141,13 @@ def test_user_owned_endpoints_do_not_use_unscoped_id_repository_methods(
 
     project_response = client.post(
         "/api/v1/projects",
-        json={"title": "Scoped project", "client_name": "Scoped client"},
+        json={
+            "title": "Scoped project",
+            "client_name": "Scoped client",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+        },
         headers=headers,
     )
     assert project_response.status_code == 201, project_response.text

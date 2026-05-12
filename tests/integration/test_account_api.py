@@ -28,7 +28,14 @@ def _headers(token: str) -> dict[str, str]:
 def _create_project(client: TestClient, token: str, title: str, **overrides: object):
     response = client.post(
         "/api/v1/projects",
-        json={"title": title, "client_name": title, **overrides},
+        json={
+            "title": title,
+            "client_name": title,
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+            **overrides,
+        },
         headers=_headers(token),
     )
     assert response.status_code == 201, response.text
@@ -56,7 +63,8 @@ def test_user_can_export_only_their_own_account_data(client: TestClient) -> None
         "Exported Retainer",
         client_name="Acme",
         contract_type="monthly_retainer",
-        monthly_rate=2500,
+        monthly_rate_cents=250000,
+        payment_cadence="monthly",
         billing_notes="Paid by wire.",
     )
     _create_project(client, second_token, "Other User Project", client_name="Other")

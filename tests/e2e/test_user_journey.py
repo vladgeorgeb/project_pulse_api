@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 
 
@@ -7,7 +9,7 @@ def _headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_full_project_management_journey(client: TestClient) -> None:
+def test_full_hourly_project_and_payment_journey(client: TestClient) -> None:
     register_response = client.post(
         "/api/v1/auth/register",
         json={"email": "journey@example.com", "password": "strongpass123"},
@@ -16,88 +18,43 @@ def test_full_project_management_journey(client: TestClient) -> None:
     token = register_response.json()["access_token"]
     headers = _headers(token)
 
-    workspace_response = client.put(
-        "/api/v1/workspaces/me",
-        json={
-            "name": "Portfolio Lab",
-            "company_name": "George Dev Studio",
-            "monthly_capacity_hours": 140,
-        },
-        headers=headers,
-    )
-    assert workspace_response.status_code == 200, workspace_response.text
-    workspace = workspace_response.json()
-    assert workspace["name"] == "Portfolio Lab"
-    assert workspace["company_name"] == "George Dev Studio"
-
     project_response = client.post(
         "/api/v1/projects",
         json={
-            "title": "React Dashboard Backend",
-            "client_name": "Internal Portfolio",
+            "title": "Freelance API Support",
+            "client_name": "Acme",
             "status": "active",
             "priority": "high",
-            "budget_cents": 1_000_000,
-            "hourly_rate_cents": 10_000,
-            "deadline": "2026-07-01",
+            "contract_type": "hourly",
+            "billing_currency": "USD",
+            "hourly_rate_cents": 2800,
+            "expected_hours_per_week": 5,
+            "start_date": date.today().isoformat(),
+            "estimated_end_date": (date.today() + timedelta(days=90)).isoformat(),
+            "payment_cadence": "biweekly",
         },
         headers=headers,
     )
     assert project_response.status_code == 201, project_response.text
     project = project_response.json()
 
-    task_ids: list[int] = []
-    for title, estimate in (
-        ("Design SQLAlchemy models", 180),
-        ("Implement dashboard summary endpoint", 240),
-    ):
-        task_response = client.post(
-            f"/api/v1/projects/{project['id']}/tasks",
-            json={
-                "title": title,
-                "priority": "high",
-                "estimated_minutes": estimate,
-            },
-            headers=headers,
-        )
-        assert task_response.status_code == 201, task_response.text
-        task_ids.append(task_response.json()["id"])
-
-    first_completion = client.post(
-        f"/api/v1/tasks/{task_ids[0]}/complete",
-        json={"actual_minutes": 150},
+    payment_response = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 56000,
+            "currency": "USD",
+            "status": "paid",
+            "method": "wire",
+            "paid_at": date.today().isoformat() + "T12:00:00",
+            "period_start": (date.today() - timedelta(days=13)).isoformat(),
+            "period_end": date.today().isoformat(),
+        },
         headers=headers,
     )
-    assert first_completion.status_code == 200, first_completion.text
-
-    blocked_completion = client.post(
-        f"/api/v1/projects/{project['id']}/complete",
-        headers=headers,
-    )
-    assert blocked_completion.status_code == 409
-
-    second_completion = client.post(
-        f"/api/v1/tasks/{task_ids[1]}/complete",
-        json={"actual_minutes": 210},
-        headers=headers,
-    )
-    assert second_completion.status_code == 200, second_completion.text
-
-    complete_project = client.post(
-        f"/api/v1/projects/{project['id']}/complete",
-        headers=headers,
-    )
-    assert complete_project.status_code == 200, complete_project.text
-    complete_payload = complete_project.json()
-    assert complete_payload["message"] == "Project completed successfully."
-    assert complete_payload["project"]["status"] == "completed"
-    assert complete_payload["project"]["progress_percent"] == 100
+    assert payment_response.status_code == 201, payment_response.text
 
     dashboard_response = client.get("/api/v1/dashboard/summary", headers=headers)
     assert dashboard_response.status_code == 200, dashboard_response.text
     dashboard = dashboard_response.json()
-    assert dashboard["total_projects"] == 1
-    assert dashboard["completed_projects"] == 1
-    assert dashboard["completed_tasks"] == 2
-    assert dashboard["actual_hours"] == 6.0
-    assert dashboard["billable_value_cents"] == 60_000
+    assert dashboard["total_paid_amount"] == 560.0
+    assert dashboard["monthly_contract_revenue_estimate"] > 0
