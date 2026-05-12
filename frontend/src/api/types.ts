@@ -1,10 +1,10 @@
 export type ProjectStatus = "planned" | "active" | "paused" | "completed" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type Priority = "low" | "medium" | "high" | "urgent";
-export type ContractType = "fixed_price" | "hourly" | "monthly_retainer" | "full_time_monthly" | "internal";
-export type BillingStatus = "not_billable" | "unpaid" | "partially_paid" | "paid" | "overdue";
-export type BillingCycle = "monthly";
-export type PaymentRecordStatus = "pending" | "paid" | "failed" | "cancelled";
+export type ContractType = "hourly" | "monthly_retainer" | "fixed_price" | "non_billable";
+export type PaymentCadence = "weekly" | "biweekly" | "monthly" | "milestone" | "manual" | "none";
+export type PaymentRecordStatus = "pending" | "paid" | "cancelled";
+export type PaymentMethod = "wire" | "bank_transfer" | "card" | "cash" | "other";
 export type FeedbackCategory = "bug" | "idea" | "question" | "other";
 export type ProjectSortBy =
   | "id"
@@ -12,8 +12,7 @@ export type ProjectSortBy =
   | "client_name"
   | "status"
   | "priority"
-  | "budget_cents"
-  | "hourly_rate_cents"
+  | "contract_type"
   | "deadline"
   | "created_at"
   | "updated_at";
@@ -126,11 +125,11 @@ export interface PaymentRecord {
   id: number;
   project_id: number;
   invoice_id: number | null;
-  amount: string | number;
+  amount_cents: number;
   currency: string;
   status: PaymentRecordStatus;
   is_overdue: boolean;
-  method: string | null;
+  method: PaymentMethod | null;
   paid_at: string | null;
   due_date: string | null;
   period_start: string | null;
@@ -148,22 +147,26 @@ export interface Project {
   description: string | null;
   status: ProjectStatus;
   priority: Priority;
-  budget_cents: number;
-  hourly_rate_cents: number;
   contract_type: ContractType;
-  billing_cycle: BillingCycle;
-  billing_status: BillingStatus;
   billing_currency: string;
-  agreed_amount: string | number | null;
-  monthly_rate: string | number | null;
-  billing_notes: string | null;
+  hourly_rate_cents: number | null;
+  expected_hours_per_week: string | number | null;
+  monthly_rate_cents: number | null;
+  fixed_price_cents: number | null;
+  start_date: string | null;
+  estimated_end_date: string | null;
   deadline: string | null;
+  payment_cadence: PaymentCadence;
+  billing_notes: string | null;
   archived: boolean;
   created_at: string;
   updated_at: string;
   progress_percent: number;
   estimated_hours: number;
   actual_hours: number;
+  expected_weekly_income_cents: number | null;
+  expected_monthly_income_cents: number | null;
+  expected_total_contract_value_cents: number | null;
   payment_records: PaymentRecord[];
   tasks: Task[];
 }
@@ -173,8 +176,6 @@ export interface ProjectFilters {
   priority?: Priority | "";
   search?: string;
   client_name?: string;
-  min_budget_cents?: number;
-  max_budget_cents?: number;
   due_after?: string;
   due_before?: string;
   overdue_only?: boolean;
@@ -199,16 +200,17 @@ export interface ProjectCreatePayload {
   description?: string | null;
   status: ProjectStatus;
   priority: Priority;
-  budget_cents: number;
-  hourly_rate_cents: number;
   contract_type: ContractType;
-  billing_cycle?: BillingCycle | null;
-  billing_status?: BillingStatus | null;
   billing_currency: string;
-  agreed_amount?: number | null;
-  monthly_rate?: number | null;
-  billing_notes?: string | null;
+  hourly_rate_cents?: number | null;
+  expected_hours_per_week?: number | null;
+  monthly_rate_cents?: number | null;
+  fixed_price_cents?: number | null;
+  start_date?: string | null;
+  estimated_end_date?: string | null;
   deadline?: string | null;
+  payment_cadence: PaymentCadence;
+  billing_notes?: string | null;
 }
 
 export interface ProjectUpdatePayload extends Partial<ProjectCreatePayload> {
@@ -216,10 +218,10 @@ export interface ProjectUpdatePayload extends Partial<ProjectCreatePayload> {
 }
 
 export interface PaymentRecordCreatePayload {
-  amount: number;
+  amount_cents: number;
   currency: string;
   status: PaymentRecordStatus;
-  method?: string | null;
+  method?: PaymentMethod | null;
   paid_at?: string | null;
   due_date?: string | null;
   period_start?: string | null;

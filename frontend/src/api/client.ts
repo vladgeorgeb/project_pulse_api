@@ -166,8 +166,6 @@ export const api = {
       priority: filters.priority,
       search: filters.search?.trim(),
       client_name: filters.client_name?.trim(),
-      min_budget_cents: filters.min_budget_cents,
-      max_budget_cents: filters.max_budget_cents,
       due_after: filters.due_after,
       due_before: filters.due_before,
       overdue_only: filters.overdue_only,

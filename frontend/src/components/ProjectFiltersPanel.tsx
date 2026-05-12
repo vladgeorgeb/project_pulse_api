@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { Priority, ProjectFilters, ProjectSortBy, ProjectStatus, SortDir } from "../api/types";
-import { usdToCents } from "../utils/format";
 
 interface ProjectFiltersPanelProps {
   filters: ProjectFilters;
@@ -15,20 +14,10 @@ const sortOptions: Array<{ value: ProjectSortBy; label: string }> = [
   { value: "deadline", label: "Deadline" },
   { value: "title", label: "Title" },
   { value: "client_name", label: "Client" },
-  { value: "budget_cents", label: "Budget" },
+  { value: "contract_type", label: "Contract type" },
   { value: "created_at", label: "Created" },
   { value: "updated_at", label: "Updated" },
 ];
-
-function centsToInput(value: number | undefined): string {
-  if (value === undefined) return "";
-  return Number((value / 100).toFixed(2)).toString();
-}
-
-function budgetFilterValue(value: string): number | undefined {
-  if (value.trim() === "") return undefined;
-  return usdToCents(value);
-}
 
 export default function ProjectFiltersPanel({ filters, disabled, onChange }: ProjectFiltersPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -42,7 +31,7 @@ export default function ProjectFiltersPanel({ filters, disabled, onChange }: Pro
       <div className="collapsible-card-header">
         <div className="panel-heading compact-panel-heading">
           <h2>Client projects</h2>
-          <p>Filter client work by delivery state, priority, client, budget, due date, or text search.</p>
+          <p>Filter client work by delivery state, priority, client, due date, or text search.</p>
         </div>
         <button
           type="button"
@@ -110,28 +99,6 @@ export default function ProjectFiltersPanel({ filters, disabled, onChange }: Pro
           </div>
 
           <div className="filters-grid secondary-filters-grid">
-            <label>
-              Min budget USD
-              <input
-                type="number"
-                min={0}
-                value={centsToInput(filters.min_budget_cents)}
-                onChange={(event) => updateFilter({ ...filters, min_budget_cents: budgetFilterValue(event.target.value) })}
-                disabled={disabled}
-              />
-            </label>
-
-            <label>
-              Max budget USD
-              <input
-                type="number"
-                min={0}
-                value={centsToInput(filters.max_budget_cents)}
-                onChange={(event) => updateFilter({ ...filters, max_budget_cents: budgetFilterValue(event.target.value) })}
-                disabled={disabled}
-              />
-            </label>
-
             <label>
               Due after
               <input

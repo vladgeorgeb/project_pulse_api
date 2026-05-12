@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import type {
   ContractType,
+  PaymentCadence,
   PaymentRecordCreatePayload,
   PaymentRecordUpdatePayload,
   Priority,
@@ -45,7 +46,8 @@ interface ProjectEditFormProps {
 
 const priorities: Priority[] = ["low", "medium", "high", "urgent"];
 const editableProjectStatuses: ProjectStatus[] = ["planned", "active", "paused", "completed", "archived"];
-const contractTypes: ContractType[] = ["fixed_price", "hourly", "monthly_retainer", "full_time_monthly", "internal"];
+const contractTypes: ContractType[] = ["fixed_price", "hourly", "monthly_retainer", "non_billable"];
+const paymentCadences: PaymentCadence[] = ["weekly", "biweekly", "monthly", "milestone", "manual", "none"];
 
 function centsToUsdInput(cents: number): string {
   return Number((cents / 100).toFixed(2)).toString();
@@ -89,9 +91,9 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
   const [description, setDescription] = useState(project.description ?? "");
   const [status, setStatus] = useState<ProjectStatus>(project.archived ? "archived" : project.status);
   const [priority, setPriority] = useState<Priority>(project.priority);
-  const [budgetUsd, setBudgetUsd] = useState(centsToUsdInput(project.budget_cents));
-  const [hourlyRateUsd, setHourlyRateUsd] = useState(centsToUsdInput(project.hourly_rate_cents));
+  const [hourlyRateUsd, setHourlyRateUsd] = useState(centsToUsdInput(project.hourly_rate_cents ?? 0));
   const [contractType, setContractType] = useState<ContractType>(project.contract_type);
+  const [paymentCadence, setPaymentCadence] = useState<PaymentCadence>(project.payment_cadence);
   const [currency, setCurrency] = useState(project.billing_currency);
   const [deadline, setDeadline] = useState(project.deadline ?? "");
 
@@ -104,9 +106,9 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
       description: description.trim() || null,
       status,
       priority,
-      budget_cents: usdToCents(budgetUsd),
-      hourly_rate_cents: usdToCents(hourlyRateUsd),
+      hourly_rate_cents: contractType === "hourly" ? usdToCents(hourlyRateUsd) : null,
       contract_type: contractType,
+      payment_cadence: contractType === "non_billable" ? "none" : paymentCadence,
       billing_currency: normalizedCurrency,
       deadline: deadline || null,
       archived: status === "archived",
@@ -154,18 +156,7 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
           </select>
         </label>
         <label>
-          Contract USD
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={budgetUsd}
-            onChange={(event) => setBudgetUsd(event.target.value)}
-            disabled={disabled}
-          />
-        </label>
-        <label>
-          Rate USD/h
+          Hourly rate ({currency})
           <input
             type="number"
             min={0}
@@ -206,6 +197,16 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
             required
             disabled={disabled}
           />
+        </label>
+        <label>
+          Payment cadence
+          <select value={paymentCadence} onChange={(event) => setPaymentCadence(event.target.value as PaymentCadence)} disabled={disabled}>
+            {(contractType === "non_billable" ? ["none"] : paymentCadences.filter((item) => item !== "none")).map((item) => (
+              <option key={item} value={item}>
+                {optionLabel(item)}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 
@@ -264,8 +265,9 @@ export default function ProjectBoard({
                   </div>
 
                   <div className="project-values">
-                    <strong>{centsToUsd(project.budget_cents)}</strong>
-                    <span>{centsToUsd(project.hourly_rate_cents)}/h</span>
+                    {project.fixed_price_cents ? <strong>{centsToUsd(project.fixed_price_cents)}</strong> : null}
+                    {project.hourly_rate_cents ? <span>{centsToUsd(project.hourly_rate_cents)}/h</span> : null}
+                    {project.monthly_rate_cents ? <span>{centsToUsd(project.monthly_rate_cents)}/mo</span> : null}
                   </div>
                 </div>
 
