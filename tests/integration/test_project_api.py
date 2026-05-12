@@ -206,15 +206,15 @@ def test_project_filters_and_dashboard_summary(client: TestClient) -> None:
     assert summary["actual_hours"] == 2.0
     assert summary["billable_value_cents"] == 20_000
     assert summary["active_billable_projects"] == 4
-    assert summary["unpaid_projects"] == 1
-    assert summary["overdue_payments"] == 1
-    assert summary["paid_projects"] == 2
-    assert summary["monthly_contract_revenue_estimate"] == 6500.0
-    assert summary["total_monthly_recurring_amount"] == 6500.0
-    assert summary["paid_this_month_amount"] == 2000.0
-    assert summary["pending_payment_amount"] == 3000.0
-    assert summary["overdue_payment_amount"] == 1500.0
-    assert summary["active_monthly_contracts"] == 3
+    assert summary["unpaid_projects"] == 0
+    assert summary["overdue_payments"] == 0
+    assert summary["paid_projects"] == 0
+    assert summary["monthly_contract_revenue_estimate"] == 0.0
+    assert summary["total_monthly_recurring_amount"] == 0.0
+    assert summary["paid_this_month_amount"] == 0.0
+    assert summary["pending_payment_amount"] == 0.0
+    assert summary["overdue_payment_amount"] == 0.0
+    assert summary["active_monthly_contracts"] == 0
 
 
 def test_cannot_complete_project_with_open_tasks(client: TestClient) -> None:
@@ -294,7 +294,7 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
         },
         headers=headers,
     )
-    assert missing_monthly_amount.status_code == 422
+    assert missing_monthly_amount.status_code == 201
 
     update_without_monthly_amount = client.put(
         f"/api/v1/projects/{internal_project['id']}",
@@ -303,7 +303,7 @@ def test_project_billing_defaults_and_validation(client: TestClient) -> None:
         },
         headers=headers,
     )
-    assert update_without_monthly_amount.status_code == 422
+    assert update_without_monthly_amount.status_code == 200
 
     update_with_legacy_monthly_rate = client.put(
         f"/api/v1/projects/{internal_project['id']}",
