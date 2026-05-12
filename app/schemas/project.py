@@ -138,7 +138,6 @@ class ProjectUpdateRequest(BaseModel):
     deadline: date | None = None
     payment_cadence: PaymentCadence | None = None
     billing_notes: str | None = Field(default=None, max_length=2_000)
-    archived: bool | None = None
 
     @field_validator("billing_currency", mode="before")
     @classmethod
@@ -167,7 +166,6 @@ class ProjectResponse(BaseModel):
     deadline: date | None
     payment_cadence: PaymentCadence
     billing_notes: str | None
-    archived: bool
     created_at: datetime
     updated_at: datetime
     progress_percent: int

@@ -95,7 +95,7 @@ class DashboardService:
         active_billable_projects = sum(
             1
             for project in projects
-            if not project.archived
+            if project.status != ProjectStatus.ARCHIVED.value
             and is_project_open(project.status)
             and project.contract_type != ContractType.NON_BILLABLE.value
         )
@@ -104,7 +104,9 @@ class DashboardService:
         total_monthly_recurring_amount_cents = 0
         active_monthly_contracts = 0
         for project in projects:
-            if project.archived or not is_project_open(project.status):
+            if project.status == ProjectStatus.ARCHIVED.value or not is_project_open(
+                project.status
+            ):
                 continue
             if project.contract_type == ContractType.HOURLY.value:
                 if (
@@ -131,7 +133,7 @@ class DashboardService:
         payment_record_entries = [
             (project, payment_record)
             for project in projects
-            if not project.archived
+            if project.status != ProjectStatus.ARCHIVED.value
             for payment_record in project.payment_records
         ]
         payment_currencies = {
@@ -210,7 +212,7 @@ class DashboardService:
         unpaid_projects = sum(
             1
             for project in projects
-            if not project.archived
+            if project.status != ProjectStatus.ARCHIVED.value
             and any(
                 payment_record.status == PaymentRecordStatus.PENDING.value
                 and not self._is_payment_record_overdue(payment_record, today)
@@ -220,7 +222,7 @@ class DashboardService:
         paid_projects = sum(
             1
             for project in projects
-            if not project.archived
+            if project.status != ProjectStatus.ARCHIVED.value
             and any(
                 payment_record.status == PaymentRecordStatus.PAID.value
                 for payment_record in project.payment_records
@@ -238,7 +240,11 @@ class DashboardService:
                 for project in projects
                 if project.status == ProjectStatus.COMPLETED.value
             ),
-            archived_projects=sum(1 for project in projects if project.archived),
+            archived_projects=sum(
+                1
+                for project in projects
+                if project.status == ProjectStatus.ARCHIVED.value
+            ),
             open_tasks=open_tasks,
             completed_tasks=completed_tasks,
             overdue_tasks=len(overdue_tasks),

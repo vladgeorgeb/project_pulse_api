@@ -142,7 +142,6 @@ class ProjectService:
             deadline=deadline,
             payment_cadence=payment_cadence,
             billing_notes=billing_notes.strip() if billing_notes else None,
-            archived=status == ProjectStatus.ARCHIVED.value,
             created_at=now,
             updated_at=now,
         )
@@ -183,7 +182,6 @@ class ProjectService:
         payment_cadence: str | None,
         billing_notes: str | None,
         billing_notes_provided: bool,
-        archived: bool | None,
     ) -> Project:
         workspace = self._workspace_for_user(user)
         project = self.projects.get_for_workspace(
@@ -203,8 +201,6 @@ class ProjectService:
             project.description = description.strip() or None
         if status is not None:
             project.status = status
-            if status == ProjectStatus.ARCHIVED.value:
-                project.archived = True
         if priority is not None:
             project.priority = priority
         if contract_type is not None:
@@ -229,10 +225,6 @@ class ProjectService:
             project.payment_cadence = payment_cadence
         if billing_notes_provided:
             project.billing_notes = billing_notes.strip() if billing_notes else None
-        if archived is not None:
-            project.archived = archived
-            if archived:
-                project.status = ProjectStatus.ARCHIVED.value
 
         self._validate_contract_fields(
             contract_type=project.contract_type,
@@ -270,7 +262,6 @@ class ProjectService:
             raise NotFoundError("Project not found.")
         validate_project_completion(task.status for task in project.tasks)
         project.status = ProjectStatus.COMPLETED.value
-        project.archived = False
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self.projects.save(project)
         self.db.commit()

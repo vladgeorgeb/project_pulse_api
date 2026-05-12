@@ -356,7 +356,6 @@ def update_project(
             billing_notes=payload.billing_notes,
             billing_notes_provided="billing_notes" in payload.model_fields_set,
             deadline=payload.deadline,
-            archived=payload.archived,
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

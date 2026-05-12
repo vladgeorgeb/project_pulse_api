@@ -125,3 +125,108 @@ def test_project_filters_and_dashboard_summary(client: TestClient) -> None:
     summary = summary_response.json()
     assert summary["active_billable_projects"] == 2
     assert summary["monthly_contract_revenue_estimate"] > 0
+
+
+def test_project_archive_transition_and_include_archived_filtering(
+    client: TestClient,
+) -> None:
+    token = _register(client, "archive-flow@example.com")
+    headers = _headers(token)
+
+    create_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Archive Candidate",
+            "client_name": "Acme",
+            "status": "active",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 125000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert create_response.status_code == 201, create_response.text
+    created_project = create_response.json()
+    assert "archived" not in created_project
+    project_id = created_project["id"]
+
+    archive_response = client.put(
+        f"/api/v1/projects/{project_id}",
+        json={"status": "archived"},
+        headers=headers,
+    )
+    assert archive_response.status_code == 200, archive_response.text
+    archived_project = archive_response.json()
+    assert archived_project["status"] == "archived"
+    assert "archived" not in archived_project
+
+    default_list = client.get("/api/v1/projects", headers=headers)
+    assert default_list.status_code == 200, default_list.text
+    assert default_list.json()["items"] == []
+
+    include_archived_list = client.get(
+        "/api/v1/projects?include_archived=true",
+        headers=headers,
+    )
+    assert include_archived_list.status_code == 200, include_archived_list.text
+    archived_items = include_archived_list.json()["items"]
+    assert len(archived_items) == 1
+    assert archived_items[0]["id"] == project_id
+    assert archived_items[0]["status"] == "archived"
+    assert "archived" not in archived_items[0]
+
+    unarchive_response = client.put(
+        f"/api/v1/projects/{project_id}",
+        json={"status": "active"},
+        headers=headers,
+    )
+    assert unarchive_response.status_code == 200, unarchive_response.text
+    assert unarchive_response.json()["status"] == "active"
+
+    active_list = client.get("/api/v1/projects", headers=headers)
+    assert active_list.status_code == 200, active_list.text
+    active_items = active_list.json()["items"]
+    assert len(active_items) == 1
+    assert active_items[0]["id"] == project_id
+
+
+def test_dashboard_summary_counts_archived_projects_by_status(
+    client: TestClient,
+) -> None:
+    token = _register(client, "archive-summary@example.com")
+    headers = _headers(token)
+
+    active_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Active Project",
+            "client_name": "Acme",
+            "status": "active",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert active_response.status_code == 201, active_response.text
+
+    archived_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Archived Project",
+            "client_name": "Beta",
+            "status": "archived",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert archived_response.status_code == 201, archived_response.text
+
+    summary_response = client.get("/api/v1/dashboard/summary", headers=headers)
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["total_projects"] == 2
+    assert summary["archived_projects"] == 1
+    assert summary["active_projects"] == 1

@@ -82,7 +82,6 @@ class AdminProjectResponse(BaseModel):
     payment_cadence: PaymentCadence
     billing_notes: str | None
     deadline: date | None
-    archived: bool
     created_at: datetime
     updated_at: datetime
 
@@ -130,7 +129,6 @@ class AdminProjectUpdateRequest(BaseModel):
     payment_cadence: PaymentCadence | None = None
     billing_notes: str | None = Field(default=None, max_length=2_000)
     deadline: date | None = None
-    archived: bool | None = None
 
     @model_validator(mode="after")
     def normalize_billing(self) -> "AdminProjectUpdateRequest":

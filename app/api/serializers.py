@@ -75,7 +75,6 @@ def to_project_response(project: Project) -> ProjectResponse:
         deadline=project.deadline,
         payment_cadence=project.payment_cadence,
         billing_notes=project.billing_notes,
-        archived=project.archived,
         created_at=project.created_at,
         updated_at=project.updated_at,
         progress_percent=calculate_progress_percent(task.status for task in tasks),

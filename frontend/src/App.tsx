@@ -515,12 +515,14 @@ export default function App() {
               mutate(() => api.completeProject(authToken, projectId), "Project completed.")
             }
             onArchiveProject={(project) =>
-              mutate(() =>
-                api.updateProject(authToken, project.id, {
-                  archived: !project.archived,
-                  status: project.archived ? "active" : "archived",
-                }),
-              )
+              {
+                const isArchived = project.status === "archived";
+                return mutate(() =>
+                  api.updateProject(authToken, project.id, {
+                    status: isArchived ? "active" : "archived",
+                  }),
+                );
+              }
             }
             onDeleteProject={(projectId) => mutate(() => api.deleteProject(authToken, projectId))}
           />

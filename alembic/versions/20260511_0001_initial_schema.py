@@ -147,17 +147,10 @@ def upgrade() -> None:
         ),
         sa.Column("billing_notes", sa.Text(), nullable=True),
         sa.Column("deadline", sa.Date(), nullable=True),
-        sa.Column("archived", sa.Boolean(), server_default=sa.false(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"]),
         sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        op.f("ix_projects_archived"),
-        "projects",
-        ["archived"],
-        unique=False,
     )
     op.create_index(
         op.f("ix_projects_client_name"),
@@ -311,7 +304,6 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_projects_deadline"), table_name="projects")
     op.drop_index(op.f("ix_projects_contract_type"), table_name="projects")
     op.drop_index(op.f("ix_projects_client_name"), table_name="projects")
-    op.drop_index(op.f("ix_projects_archived"), table_name="projects")
     op.drop_table("projects")
     op.drop_index(op.f("ix_workspaces_user_id"), table_name="workspaces")
     op.drop_index(op.f("ix_workspaces_id"), table_name="workspaces")

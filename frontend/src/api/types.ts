@@ -156,7 +156,6 @@ export interface Project {
   deadline: string | null;
   payment_cadence: PaymentCadence;
   billing_notes: string | null;
-  archived: boolean;
   created_at: string;
   updated_at: string;
   progress_percent: number;
@@ -211,9 +210,7 @@ export interface ProjectCreatePayload {
   billing_notes?: string | null;
 }
 
-export interface ProjectUpdatePayload extends Partial<ProjectCreatePayload> {
-  archived?: boolean;
-}
+export interface ProjectUpdatePayload extends Partial<ProjectCreatePayload> {}
 
 export interface PaymentRecordCreatePayload {
   amount_cents: number;

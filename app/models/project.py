@@ -4,7 +4,6 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    Boolean,
     Date,
     DateTime,
     ForeignKey,
@@ -12,7 +11,6 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,9 +60,6 @@ class Project(Base):
         server_default=PaymentCadence.MANUAL.value,
     )
     billing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    archived: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=false(), index=True
-    )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

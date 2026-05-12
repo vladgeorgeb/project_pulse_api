@@ -134,8 +134,9 @@ class ProjectRepository:
         )
 
         if not include_archived:
-            stmt = stmt.where(Project.archived.is_(False))
-            count_stmt = count_stmt.where(Project.archived.is_(False))
+            not_archived_filter = Project.status != ProjectStatus.ARCHIVED.value
+            stmt = stmt.where(not_archived_filter)
+            count_stmt = count_stmt.where(not_archived_filter)
 
         if status is not None:
             stmt = stmt.where(Project.status == status)

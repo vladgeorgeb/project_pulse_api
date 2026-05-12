@@ -61,6 +61,10 @@ function hasOpenTasks(project: Project): boolean {
   return project.tasks.some((task) => task.status !== "done");
 }
 
+function isArchivedProject(project: Project): boolean {
+  return project.status === "archived";
+}
+
 function estimateProjectCardHeight(project: Project): number {
   const descriptionLines = Math.ceil((project.description?.length ?? 0) / 80);
   const paymentRecordHeight = Math.max(project.payment_records.length, 1) * 72;
@@ -89,7 +93,7 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
   const [title, setTitle] = useState(project.title);
   const [clientName, setClientName] = useState(project.client_name);
   const [description, setDescription] = useState(project.description ?? "");
-  const [status, setStatus] = useState<ProjectStatus>(project.archived ? "archived" : project.status);
+  const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [priority, setPriority] = useState<Priority>(project.priority);
   const [hourlyRateUsd, setHourlyRateUsd] = useState(centsToUsdInput(project.hourly_rate_cents ?? 0));
   const [contractType, setContractType] = useState<ContractType>(project.contract_type);
@@ -111,7 +115,6 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
       payment_cadence: contractType === "non_billable" ? "none" : paymentCadence,
       billing_currency: normalizedCurrency,
       deadline: deadline || null,
-      archived: status === "archived",
     });
     onCancel();
   }
@@ -247,6 +250,7 @@ export default function ProjectBoard({
         <div className="project-board-column" key={columnIndex}>
           {column.map((project) => {
             const blockedCompletion = hasOpenTasks(project);
+            const isArchived = isArchivedProject(project);
             const isEditingProject = editingProjectId === project.id;
             const showContractInfo = project.contract_type !== "fixed_price";
 
@@ -258,7 +262,6 @@ export default function ProjectBoard({
                       <span className={classNames("status-pill", project.status)}>{project.status}</span>
                       <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
                       {showContractInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
-                      {project.archived ? <span className="status-pill archived">archived</span> : null}
                     </div>
                     <h3>{project.title}</h3>
                     <p>{project.client_name}</p>
@@ -336,7 +339,7 @@ export default function ProjectBoard({
                     Complete project
                   </button>
                   <button type="button" className="ghost-button" disabled={disabled} onClick={() => onArchiveProject(project)}>
-                    {project.archived ? "Unarchive" : "Archive"}
+                    {isArchived ? "Unarchive" : "Archive"}
                   </button>
                   <button type="button" className="danger-button" disabled={disabled} onClick={() => onDeleteProject(project.id)}>
                     Delete

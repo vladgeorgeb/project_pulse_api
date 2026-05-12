@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.security import hash_password
-from app.domain.enums import ContractType, PaymentCadence, ProjectStatus, TaskStatus
+from app.domain.enums import ContractType, PaymentCadence, TaskStatus
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
@@ -207,7 +207,6 @@ class AdminService:
             payment_cadence=payment_cadence,
             billing_notes=billing_notes.strip() if billing_notes else None,
             deadline=deadline,
-            archived=status == ProjectStatus.ARCHIVED.value,
             created_at=now,
             updated_at=now,
         )
@@ -243,7 +242,6 @@ class AdminService:
         billing_notes: str | None,
         billing_notes_provided: bool,
         deadline: date | None,
-        archived: bool | None,
     ) -> Project:
         project = self.get_project(project_id)
         if workspace_id is not None:
@@ -258,8 +256,6 @@ class AdminService:
             project.description = description.strip() or None
         if status is not None:
             project.status = status
-            if status == ProjectStatus.ARCHIVED.value:
-                project.archived = True
         if priority is not None:
             project.priority = priority
         if hourly_rate_cents is not None:
@@ -284,10 +280,6 @@ class AdminService:
             project.billing_notes = billing_notes.strip() if billing_notes else None
         if deadline is not None:
             project.deadline = deadline
-        if archived is not None:
-            project.archived = archived
-            if archived:
-                project.status = ProjectStatus.ARCHIVED.value
         if project.contract_type == ContractType.NON_BILLABLE.value:
             project.payment_cadence = PaymentCadence.NONE.value
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)

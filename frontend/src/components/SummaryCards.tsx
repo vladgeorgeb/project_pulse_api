@@ -45,10 +45,10 @@ function formatNextDueAmount(summary: DashboardSummary): string {
 }
 
 export default function SummaryCards({ summary, projects }: SummaryCardsProps) {
-  const activeProjects = projects.filter((project) => !project.archived && project.status === "active");
-  const plannedProjects = projects.filter((project) => !project.archived && project.status === "planned");
-  const pausedProjects = projects.filter((project) => !project.archived && project.status === "paused");
-  const completedProjects = projects.filter((project) => !project.archived && project.status === "completed");
+  const activeProjects = projects.filter((project) => project.status === "active");
+  const plannedProjects = projects.filter((project) => project.status === "planned");
+  const pausedProjects = projects.filter((project) => project.status === "paused");
+  const completedProjects = projects.filter((project) => project.status === "completed");
   const completedProjectCount = completedProjects.length || summary.completed_projects;
 
   const activeProjectOpenTasks = countTasks(activeProjects, (task) => task.status !== "done");
