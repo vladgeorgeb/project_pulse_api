@@ -38,6 +38,13 @@ class PaymentStatus(StrEnum):
     OVERDUE = "overdue"
 
 
+class PaymentRecordStatus(StrEnum):
+    PENDING = "pending"
+    PAID = "paid"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class TaskStatus(StrEnum):
     TODO = "todo"
     IN_PROGRESS = "in_progress"

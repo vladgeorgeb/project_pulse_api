@@ -3,7 +3,7 @@ from __future__ import annotations
 from app.domain.project_rules import calculate_progress_percent
 from app.models.project import Project
 from app.models.workspace import Workspace
-from app.schemas.project import ProjectResponse, TaskResponse
+from app.schemas.project import PaymentRecordResponse, ProjectResponse, TaskResponse
 from app.schemas.workspace import WorkspaceResponse
 
 
@@ -39,6 +39,10 @@ def to_project_response(project: Project) -> ProjectResponse:
         progress_percent=calculate_progress_percent(task.status for task in tasks),
         estimated_hours=round(sum(task.estimated_minutes for task in tasks) / 60, 2),
         actual_hours=round(sum(task.actual_minutes for task in tasks) / 60, 2),
+        payment_records=[
+            PaymentRecordResponse.model_validate(payment_record)
+            for payment_record in project.payment_records
+        ],
         tasks=[TaskResponse.model_validate(task) for task in tasks],
     )
 

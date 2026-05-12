@@ -19,7 +19,7 @@ from app.schemas.account import (
     AccountExportPaymentRecord,
     AccountExportResponse,
 )
-from app.schemas.project import TaskResponse
+from app.schemas.project import PaymentRecordResponse, TaskResponse
 
 
 class AccountService:
@@ -37,6 +37,11 @@ class AccountService:
         workspace = hydrated_user.workspace
         projects = list(workspace.projects) if workspace is not None else []
         tasks = [task for project in projects for task in project.tasks]
+        payment_records = [
+            payment_record
+            for project in projects
+            for payment_record in project.payment_records
+        ]
 
         return AccountExportResponse(
             exported_at=datetime.now(UTC),
@@ -63,6 +68,10 @@ class AccountService:
             billing=AccountExportBillingData(
                 project_payment_records=[
                     self._payment_record_from_project(project) for project in projects
+                ],
+                payment_records=[
+                    PaymentRecordResponse.model_validate(payment_record)
+                    for payment_record in payment_records
                 ],
                 invoices=[],
             ),

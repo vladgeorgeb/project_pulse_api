@@ -4,19 +4,21 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.domain.constants import MAX_PROJECT_BUDGET_CENTS, MAX_TASK_ESTIMATE_MINUTES
 from app.domain.enums import (
     BillingCycle,
     BillingStatus,
     ContractType,
+    PaymentRecordStatus,
     PaymentStatus,
     Priority,
     ProjectStatus,
     TaskStatus,
 )
 
+SUPPORTED_PAYMENT_CURRENCIES = frozenset({"USD", "EUR", "GBP", "RON"})
 MONTHLY_AMOUNT_REQUIRED_MESSAGE = (
     "monthly_amount is required for monthly_retainer and full_time_monthly projects."
 )
@@ -79,12 +81,6 @@ class ProjectBillingFields(BaseModel):
             self.payment_status = PaymentStatus.PENDING
         else:
             self.payment_status = billing_status_to_payment_status(self.billing_status)
-        if (
-            self.contract_type
-            in {ContractType.MONTHLY_RETAINER, ContractType.FULL_TIME_MONTHLY}
-            and self.monthly_amount is None
-        ):
-            raise ValueError(MONTHLY_AMOUNT_REQUIRED_MESSAGE)
         return self
 
 
@@ -129,6 +125,91 @@ class TaskUpdateRequest(BaseModel):
 
 class TaskCompleteRequest(BaseModel):
     actual_minutes: int | None = Field(default=None, ge=0, le=MAX_TASK_ESTIMATE_MINUTES)
+
+
+class PaymentRecordFields(BaseModel):
+    amount: Decimal = Field(gt=0)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    status: PaymentRecordStatus = PaymentRecordStatus.PENDING
+    method: str | None = Field(default=None, max_length=80)
+    paid_at: datetime | None = None
+    due_date: date | None = None
+    period_start: date | None = None
+    period_end: date | None = None
+    notes: str | None = Field(default=None, max_length=2_000)
+    invoice_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return str(value).strip().upper()
+
+    @model_validator(mode="after")
+    def normalize_payment_record(self) -> "PaymentRecordFields":
+        if self.currency not in SUPPORTED_PAYMENT_CURRENCIES:
+            raise ValueError("currency must be one of USD, EUR, GBP, or RON.")
+        if (
+            self.period_start is not None
+            and self.period_end is not None
+            and self.period_start > self.period_end
+        ):
+            raise ValueError("period_start cannot be later than period_end.")
+        return self
+
+
+class PaymentRecordCreateRequest(PaymentRecordFields):
+    pass
+
+
+class PaymentRecordUpdateRequest(BaseModel):
+    amount: Decimal | None = Field(default=None, gt=0)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    status: PaymentRecordStatus | None = None
+    method: str | None = Field(default=None, max_length=80)
+    paid_at: datetime | None = None
+    due_date: date | None = None
+    period_start: date | None = None
+    period_end: date | None = None
+    notes: str | None = Field(default=None, max_length=2_000)
+    invoice_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        return str(value).strip().upper() if value is not None else None
+
+    @model_validator(mode="after")
+    def normalize_payment_record_update(self) -> "PaymentRecordUpdateRequest":
+        if self.currency is not None:
+            if self.currency not in SUPPORTED_PAYMENT_CURRENCIES:
+                raise ValueError("currency must be one of USD, EUR, GBP, or RON.")
+        if (
+            self.period_start is not None
+            and self.period_end is not None
+            and self.period_start > self.period_end
+        ):
+            raise ValueError("period_start cannot be later than period_end.")
+        return self
+
+
+class PaymentRecordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    invoice_id: int | None
+    amount: Decimal
+    currency: str
+    status: PaymentRecordStatus
+    is_overdue: bool
+    method: str | None
+    paid_at: datetime | None
+    due_date: date | None
+    period_start: date | None
+    period_end: date | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 class ProjectCreateRequest(ProjectBillingFields):
@@ -220,6 +301,7 @@ class ProjectResponse(BaseModel):
     progress_percent: int
     estimated_hours: float
     actual_hours: float
+    payment_records: list[PaymentRecordResponse]
     tasks: list[TaskResponse]
 
 

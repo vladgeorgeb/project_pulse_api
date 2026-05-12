@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -25,6 +27,12 @@ class DashboardSummaryResponse(BaseModel):
     monthly_contract_revenue_estimate: float
     total_monthly_recurring_amount: float
     paid_this_month_amount: float
+    total_paid_amount: float
     pending_payment_amount: float
     overdue_payment_amount: float
+    next_payment_due_date: date | None
+    next_payment_due_amount: float | None
+    next_payment_due_currency: str | None
+    payment_summary_currency: str | None
+    has_mixed_payment_currencies: bool
     active_monthly_contracts: int

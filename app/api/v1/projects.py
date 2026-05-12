@@ -19,6 +19,9 @@ from app.core.exceptions import (
 from app.domain.enums import Priority, ProjectStatus
 from app.models.user import User
 from app.schemas.project import (
+    PaymentRecordCreateRequest,
+    PaymentRecordResponse,
+    PaymentRecordUpdateRequest,
     ProjectActionResponse,
     ProjectCreateRequest,
     ProjectListResponse,
@@ -30,6 +33,7 @@ from app.schemas.project import (
     TaskResponse,
     TaskUpdateRequest,
 )
+from app.services.payment_record_service import PaymentRecordService
 from app.services.project_service import ProjectService
 from app.services.task_service import TaskService
 
@@ -171,6 +175,149 @@ def get_project(
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return to_project_response(project)
+
+
+@router.get(
+    "/projects/{project_id}/payments",
+    response_model=list[PaymentRecordResponse],
+)
+def list_project_payment_records(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[PaymentRecordResponse]:
+    service = PaymentRecordService(db)
+    try:
+        payment_records = service.list_payment_records_for_project(
+            user=current_user,
+            project_id=project_id,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [
+        PaymentRecordResponse.model_validate(payment_record)
+        for payment_record in payment_records
+    ]
+
+
+@router.post(
+    "/projects/{project_id}/payments",
+    response_model=PaymentRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_project_payment_record(
+    project_id: int,
+    payload: PaymentRecordCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PaymentRecordResponse:
+    service = PaymentRecordService(db)
+    try:
+        payment_record = service.create_payment_record(
+            user=current_user,
+            project_id=project_id,
+            amount=payload.amount,
+            currency=payload.currency,
+            status=payload.status.value,
+            method=payload.method,
+            paid_at=payload.paid_at,
+            due_date=payload.due_date,
+            period_start=payload.period_start,
+            period_end=payload.period_end,
+            notes=payload.notes,
+            invoice_id=payload.invoice_id,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return PaymentRecordResponse.model_validate(payment_record)
+
+
+@router.get(
+    "/projects/{project_id}/payments/{payment_record_id}",
+    response_model=PaymentRecordResponse,
+)
+def get_project_payment_record(
+    project_id: int,
+    payment_record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PaymentRecordResponse:
+    service = PaymentRecordService(db)
+    try:
+        payment_record = service.get_payment_record_for_project(
+            user=current_user,
+            project_id=project_id,
+            payment_record_id=payment_record_id,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return PaymentRecordResponse.model_validate(payment_record)
+
+
+@router.put(
+    "/projects/{project_id}/payments/{payment_record_id}",
+    response_model=PaymentRecordResponse,
+)
+def update_project_payment_record(
+    project_id: int,
+    payment_record_id: int,
+    payload: PaymentRecordUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PaymentRecordResponse:
+    service = PaymentRecordService(db)
+    try:
+        payment_record = service.update_payment_record(
+            user=current_user,
+            project_id=project_id,
+            payment_record_id=payment_record_id,
+            amount=payload.amount,
+            amount_provided="amount" in payload.model_fields_set,
+            currency=payload.currency,
+            status=payload.status.value if payload.status is not None else None,
+            method=payload.method,
+            method_provided="method" in payload.model_fields_set,
+            paid_at=payload.paid_at,
+            paid_at_provided="paid_at" in payload.model_fields_set,
+            due_date=payload.due_date,
+            due_date_provided="due_date" in payload.model_fields_set,
+            period_start=payload.period_start,
+            period_start_provided="period_start" in payload.model_fields_set,
+            period_end=payload.period_end,
+            period_end_provided="period_end" in payload.model_fields_set,
+            notes=payload.notes,
+            notes_provided="notes" in payload.model_fields_set,
+            invoice_id=payload.invoice_id,
+            invoice_id_provided="invoice_id" in payload.model_fields_set,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return PaymentRecordResponse.model_validate(payment_record)
+
+
+@router.delete(
+    "/projects/{project_id}/payments/{payment_record_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_project_payment_record(
+    project_id: int,
+    payment_record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    service = PaymentRecordService(db)
+    try:
+        service.delete_payment_record(
+            user=current_user,
+            project_id=project_id,
+            payment_record_id=payment_record_id,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)

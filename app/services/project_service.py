@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import (
     BusinessRuleError,
     NotFoundError,
-    ValidationError,
 )
 from app.domain.enums import BillingStatus, ContractType, PaymentStatus, ProjectStatus
 from app.domain.project_rules import validate_project_completion
@@ -16,7 +15,6 @@ from app.models.project import Project
 from app.models.user import User
 from app.repositories.project import PaginatedProjects, ProjectRepository
 from app.repositories.workspace import WorkspaceRepository
-from app.schemas.project import MONTHLY_AMOUNT_REQUIRED_MESSAGE
 
 
 def _billing_status_for_payment_status(payment_status: str) -> str:
@@ -37,13 +35,6 @@ def _payment_status_for_billing_status(billing_status: str) -> str:
     if billing_status == BillingStatus.NOT_BILLABLE.value:
         return PaymentStatus.NOT_STARTED.value
     return PaymentStatus.PENDING.value
-
-
-def _requires_monthly_amount(contract_type: str) -> bool:
-    return contract_type in {
-        ContractType.MONTHLY_RETAINER.value,
-        ContractType.FULL_TIME_MONTHLY.value,
-    }
 
 
 class ProjectService:
@@ -161,8 +152,6 @@ class ProjectService:
         if contract_type == ContractType.INTERNAL.value:
             billing_status = BillingStatus.NOT_BILLABLE.value
             payment_status = PaymentStatus.NOT_STARTED.value
-        if _requires_monthly_amount(contract_type) and monthly_amount is None:
-            raise ValidationError(MONTHLY_AMOUNT_REQUIRED_MESSAGE)
         if payment_status == PaymentStatus.PAID.value and paid_at is None:
             paid_at = datetime.now(UTC).replace(tzinfo=None)
         now = datetime.now(UTC).replace(tzinfo=None)
@@ -310,11 +299,6 @@ class ProjectService:
             project.archived = archived
             if archived:
                 project.status = ProjectStatus.ARCHIVED.value
-        if (
-            _requires_monthly_amount(project.contract_type)
-            and project.monthly_amount is None
-        ):
-            raise ValidationError(MONTHLY_AMOUNT_REQUIRED_MESSAGE)
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
         self.projects.save(project)

@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.schemas.project import ProjectResponse, TaskResponse
+from app.schemas.project import PaymentRecordResponse, ProjectResponse, TaskResponse
 
 
 class AccountExportAccount(BaseModel):
@@ -49,6 +49,7 @@ class AccountExportPaymentRecord(BaseModel):
 
 class AccountExportBillingData(BaseModel):
     project_payment_records: list[AccountExportPaymentRecord]
+    payment_records: list[PaymentRecordResponse] = Field(default_factory=list)
     invoices: list[dict[str, Any]] = Field(default_factory=list)
 
 

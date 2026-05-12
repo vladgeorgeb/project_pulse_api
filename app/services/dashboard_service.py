@@ -7,7 +7,11 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
-from app.domain.enums import ContractType, PaymentStatus, ProjectStatus, TaskStatus
+from app.domain.enums import (
+    PaymentRecordStatus,
+    ProjectStatus,
+    TaskStatus,
+)
 from app.domain.project_rules import is_project_open
 from app.models.user import User
 from app.repositories.project import ProjectRepository
@@ -36,8 +40,14 @@ class DashboardSummary:
     monthly_contract_revenue_estimate: float
     total_monthly_recurring_amount: float
     paid_this_month_amount: float
+    total_paid_amount: float
     pending_payment_amount: float
     overdue_payment_amount: float
+    next_payment_due_date: date | None
+    next_payment_due_amount: float | None
+    next_payment_due_currency: str | None
+    payment_summary_currency: str | None
+    has_mixed_payment_currencies: bool
     active_monthly_contracts: int
 
 
@@ -84,65 +94,105 @@ class DashboardService:
         active_billable_projects = sum(
             1
             for project in projects
+            if not project.archived and is_project_open(project.status)
+        )
+        today = date.today()
+        current_month = today.replace(day=1)
+        payment_record_entries = [
+            (project, payment_record)
+            for project in projects
             if not project.archived
-            and is_project_open(project.status)
-            and project.payment_status != PaymentStatus.NOT_STARTED.value
+            for payment_record in project.payment_records
+        ]
+        payment_currencies = {
+            payment_record.currency
+            for _, payment_record in payment_record_entries
+        }
+        has_mixed_payment_currencies = len(payment_currencies) > 1
+        payment_summary_currency = (
+            next(iter(payment_currencies)) if len(payment_currencies) == 1 else None
+        )
+        if has_mixed_payment_currencies:
+            total_paid_amount = Decimal("0")
+            paid_this_month_amount = Decimal("0")
+            pending_payment_amount = Decimal("0")
+            overdue_payment_amount = Decimal("0")
+            next_due_amount: Decimal | None = None
+        else:
+            total_paid_amount = sum(
+                (
+                    payment_record.amount
+                    for _, payment_record in payment_record_entries
+                    if payment_record.status == PaymentRecordStatus.PAID.value
+                ),
+                Decimal("0"),
+            )
+            paid_this_month_amount = sum(
+                (
+                    payment_record.amount
+                    for _, payment_record in payment_record_entries
+                    if payment_record.status == PaymentRecordStatus.PAID.value
+                    and payment_record.paid_at is not None
+                    and payment_record.paid_at.date().replace(day=1) == current_month
+                ),
+                Decimal("0"),
+            )
+            pending_payment_amount = sum(
+                (
+                    payment_record.amount
+                    for _, payment_record in payment_record_entries
+                    if payment_record.status == PaymentRecordStatus.PENDING.value
+                    and not self._is_payment_record_overdue(payment_record, today)
+                ),
+                Decimal("0"),
+            )
+            overdue_payment_amount = sum(
+                (
+                    payment_record.amount
+                    for _, payment_record in payment_record_entries
+                    if self._is_payment_record_overdue(payment_record, today)
+                ),
+                Decimal("0"),
+            )
+            next_due_amount = None
+        record_due_candidates = [
+            (
+                payment_record.due_date,
+                payment_record.id,
+                payment_record.amount,
+                payment_record.currency,
+                "record",
+            )
+            for _, payment_record in payment_record_entries
+            if payment_record.due_date is not None
+            and self._is_payment_record_open(payment_record)
+        ]
+        next_due = min(record_due_candidates, default=None)
+        if next_due is not None and not has_mixed_payment_currencies:
+            next_due_amount = next_due[2]
+        overdue_payments = sum(
+            1
+            for _, payment_record in payment_record_entries
+            if self._is_payment_record_overdue(payment_record, today)
         )
         unpaid_projects = sum(
             1
             for project in projects
             if not project.archived
-            and project.payment_status == PaymentStatus.PENDING.value
-        )
-        overdue_payments = sum(
-            1
-            for project in projects
-            if not project.archived
-            and project.payment_status == PaymentStatus.OVERDUE.value
+            and any(
+                payment_record.status == PaymentRecordStatus.PENDING.value
+                and not self._is_payment_record_overdue(payment_record, today)
+                for payment_record in project.payment_records
+            )
         )
         paid_projects = sum(
             1
             for project in projects
             if not project.archived
-            and project.payment_status == PaymentStatus.PAID.value
-        )
-        monthly_contract_projects = [
-            project
-            for project in projects
-            if not project.archived
-            and is_project_open(project.status)
-            and project.contract_type
-            in {
-                ContractType.MONTHLY_RETAINER.value,
-                ContractType.FULL_TIME_MONTHLY.value,
-            }
-            and project.payment_status != PaymentStatus.NOT_STARTED.value
-        ]
-        current_month = date.today().replace(day=1)
-        monthly_amounts = [
-            (project, project.monthly_amount or project.monthly_rate or Decimal("0"))
-            for project in monthly_contract_projects
-        ]
-        total_monthly_recurring_amount = sum(
-            (amount for _, amount in monthly_amounts),
-            Decimal("0"),
-        )
-        paid_this_month_amount = sum(
-            amount
-            for project, amount in monthly_amounts
-            if project.payment_status == PaymentStatus.PAID.value
-            and project.paid_at is not None
-            and project.paid_at.date().replace(day=1) == current_month
-        )
-        pending_payment_amount = sum(
-            amount
-            for project, amount in monthly_amounts
-            if project.payment_status == PaymentStatus.PENDING.value
-        )
-        overdue_payment_amount = sum(
-            amount
-            for project, amount in monthly_amounts
-            if project.payment_status == PaymentStatus.OVERDUE.value
+            and any(
+                payment_record.status == PaymentRecordStatus.PAID.value
+                for payment_record in project.payment_records
+            )
         )
 
         return DashboardSummary(
@@ -168,16 +218,33 @@ class DashboardService:
             unpaid_projects=unpaid_projects,
             overdue_payments=overdue_payments,
             paid_projects=paid_projects,
-            monthly_contract_revenue_estimate=round(
-                float(total_monthly_recurring_amount),
-                2,
-            ),
-            total_monthly_recurring_amount=round(
-                float(total_monthly_recurring_amount),
-                2,
-            ),
+            monthly_contract_revenue_estimate=0.0,
+            total_monthly_recurring_amount=0.0,
             paid_this_month_amount=round(float(paid_this_month_amount), 2),
+            total_paid_amount=round(float(total_paid_amount), 2),
             pending_payment_amount=round(float(pending_payment_amount), 2),
             overdue_payment_amount=round(float(overdue_payment_amount), 2),
-            active_monthly_contracts=len(monthly_contract_projects),
+            next_payment_due_date=next_due[0] if next_due is not None else None,
+            next_payment_due_amount=(
+                round(float(next_due_amount), 2)
+                if next_due_amount is not None
+                else None
+            ),
+            next_payment_due_currency=next_due[3] if next_due is not None else None,
+            payment_summary_currency=payment_summary_currency,
+            has_mixed_payment_currencies=has_mixed_payment_currencies,
+            active_monthly_contracts=0,
+        )
+
+    def _is_payment_record_open(self, payment_record) -> bool:
+        return payment_record.status not in {
+            PaymentRecordStatus.PAID.value,
+            PaymentRecordStatus.CANCELLED.value,
+        }
+
+    def _is_payment_record_overdue(self, payment_record, today: date) -> bool:
+        return (
+            payment_record.due_date is not None
+            and payment_record.due_date < today
+            and self._is_payment_record_open(payment_record)
         )
