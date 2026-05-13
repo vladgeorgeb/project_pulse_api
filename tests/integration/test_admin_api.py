@@ -84,6 +84,56 @@ def test_admin_can_create_project_and_task(client: TestClient) -> None:
     assert task_response.json()["project_id"] == project_id
 
 
+def test_admin_task_update_cannot_bypass_invalid_status_transition(
+    client: TestClient,
+) -> None:
+    _register_user(client, "task-transition-parity@example.com")
+    admin_token = _login_admin(client)
+    headers = _headers(admin_token)
+
+    workspace = client.get("/api/v1/admin/workspaces", headers=headers).json()[0]
+    project_response = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Transition Project",
+            "client_name": "Admin Client",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert project_response.status_code == 201, project_response.text
+
+    task_response = client.post(
+        "/api/v1/admin/tasks",
+        json={
+            "project_id": project_response.json()["id"],
+            "title": "Closed task",
+            "status": "done",
+            "priority": "medium",
+            "estimated_minutes": 60,
+        },
+        headers=headers,
+    )
+    assert task_response.status_code == 201, task_response.text
+    task_id = task_response.json()["id"]
+
+    invalid_update = client.put(
+        f"/api/v1/admin/tasks/{task_id}",
+        json={"status": "todo"},
+        headers=headers,
+    )
+
+    assert invalid_update.status_code == 409
+    assert invalid_update.json()["detail"] == "Cannot move task from 'done' to 'todo'."
+
+    unchanged_task = client.get(f"/api/v1/admin/tasks/{task_id}", headers=headers)
+    assert unchanged_task.status_code == 200, unchanged_task.text
+    assert unchanged_task.json()["status"] == "done"
+
+
 def test_admin_can_update_workspace_and_project(client: TestClient) -> None:
     _register_user(client, "owner@example.com")
     admin_token = _login_admin(client)

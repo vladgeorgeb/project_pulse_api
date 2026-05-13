@@ -514,6 +514,8 @@ def update_task(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (BusinessRuleError, ValidationError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return AdminTaskResponse.model_validate(task)
 
 

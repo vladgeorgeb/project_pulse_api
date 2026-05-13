@@ -11,6 +11,7 @@ from app.domain.enums import ProjectStatus, TaskStatus
 from app.domain.project_rules import (
     validate_project_billing_and_dates,
     validate_project_completion,
+    validate_task_status_transition,
 )
 from app.models.project import Project
 from app.models.task import Task
@@ -381,6 +382,8 @@ class AdminService:
         if description is not None:
             task.description = description.strip() or None
         if status is not None:
+            if status != task.status:
+                validate_task_status_transition(task.status, status)
             task.status = status
             task.completed_at = now if status == TaskStatus.DONE.value else None
         if priority is not None:
