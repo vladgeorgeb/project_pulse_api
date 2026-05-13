@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.security import hash_password
-from app.domain.enums import ContractType, PaymentCadence, TaskStatus
+from app.domain.enums import ProjectStatus, TaskStatus
+from app.domain.project_rules import (
+    validate_project_billing_and_dates,
+    validate_project_completion,
+)
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
@@ -188,6 +192,15 @@ class AdminService:
     ) -> Project:
         if self.workspaces.get_by_id(workspace_id) is None:
             raise NotFoundError("Workspace not found.")
+        validate_project_billing_and_dates(
+            contract_type=contract_type,
+            hourly_rate_cents=hourly_rate_cents,
+            monthly_rate_cents=monthly_rate_cents,
+            fixed_price_cents=fixed_price_cents,
+            payment_cadence=payment_cadence,
+            start_date=start_date,
+            estimated_end_date=estimated_end_date,
+        )
         now = datetime.now(UTC).replace(tzinfo=None)
         project = Project(
             workspace_id=workspace_id,
@@ -244,6 +257,8 @@ class AdminService:
         deadline: date | None,
     ) -> Project:
         project = self.get_project(project_id)
+        if status == ProjectStatus.COMPLETED.value:
+            validate_project_completion(task.status for task in project.tasks)
         if workspace_id is not None:
             if self.workspaces.get_by_id(workspace_id) is None:
                 raise NotFoundError("Workspace not found.")
@@ -280,8 +295,15 @@ class AdminService:
             project.billing_notes = billing_notes.strip() if billing_notes else None
         if deadline is not None:
             project.deadline = deadline
-        if project.contract_type == ContractType.NON_BILLABLE.value:
-            project.payment_cadence = PaymentCadence.NONE.value
+        validate_project_billing_and_dates(
+            contract_type=project.contract_type,
+            hourly_rate_cents=project.hourly_rate_cents,
+            monthly_rate_cents=project.monthly_rate_cents,
+            fixed_price_cents=project.fixed_price_cents,
+            payment_cadence=project.payment_cadence,
+            start_date=project.start_date,
+            estimated_end_date=project.estimated_end_date,
+        )
         project.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self.projects.save(project)
         self.db.commit()

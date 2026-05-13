@@ -130,3 +130,182 @@ def test_non_admin_gets_403_on_admin_routes(client: TestClient) -> None:
     response = client.get("/api/v1/admin/users", headers=_headers(user_token))
 
     assert response.status_code == 403
+
+
+def test_admin_project_contract_rate_validation_parity(client: TestClient) -> None:
+    _register_user(client, "contract-parity@example.com")
+    admin_token = _login_admin(client)
+    headers = _headers(admin_token)
+
+    workspace = client.get("/api/v1/admin/workspaces", headers=headers).json()[0]
+
+    invalid_create = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Invalid hourly",
+            "client_name": "Acme",
+            "contract_type": "hourly",
+            "payment_cadence": "weekly",
+        },
+        headers=headers,
+    )
+    assert invalid_create.status_code == 422
+
+    valid_create = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Valid fixed",
+            "client_name": "Acme",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 200000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert valid_create.status_code == 201, valid_create.text
+
+    invalid_update = client.put(
+        f"/api/v1/admin/projects/{valid_create.json()['id']}",
+        json={"contract_type": "monthly_retainer"},
+        headers=headers,
+    )
+    assert invalid_update.status_code == 422
+
+
+def test_admin_project_non_billable_cadence_validation_parity(
+    client: TestClient,
+) -> None:
+    _register_user(client, "cadence-parity@example.com")
+    admin_token = _login_admin(client)
+    headers = _headers(admin_token)
+
+    workspace = client.get("/api/v1/admin/workspaces", headers=headers).json()[0]
+
+    invalid_create = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Invalid non billable cadence",
+            "client_name": "Internal",
+            "contract_type": "non_billable",
+            "payment_cadence": "monthly",
+        },
+        headers=headers,
+    )
+    assert invalid_create.status_code == 422
+
+    valid_create = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Billable baseline",
+            "client_name": "Acme",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 200000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert valid_create.status_code == 201, valid_create.text
+
+    invalid_update = client.put(
+        f"/api/v1/admin/projects/{valid_create.json()['id']}",
+        json={"payment_cadence": "none"},
+        headers=headers,
+    )
+    assert invalid_update.status_code == 422
+
+
+def test_admin_project_date_range_validation_parity(client: TestClient) -> None:
+    _register_user(client, "date-range-parity@example.com")
+    admin_token = _login_admin(client)
+    headers = _headers(admin_token)
+
+    workspace = client.get("/api/v1/admin/workspaces", headers=headers).json()[0]
+
+    invalid_create = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Invalid dates",
+            "client_name": "Acme",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 200000,
+            "payment_cadence": "milestone",
+            "start_date": "2026-05-20",
+            "estimated_end_date": "2026-05-10",
+        },
+        headers=headers,
+    )
+    assert invalid_create.status_code == 422
+
+    valid_create = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Valid dates",
+            "client_name": "Acme",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 200000,
+            "payment_cadence": "milestone",
+            "start_date": "2026-05-01",
+            "estimated_end_date": "2026-05-15",
+        },
+        headers=headers,
+    )
+    assert valid_create.status_code == 201, valid_create.text
+
+    invalid_update = client.put(
+        f"/api/v1/admin/projects/{valid_create.json()['id']}",
+        json={
+            "start_date": "2026-05-30",
+            "estimated_end_date": "2026-05-10",
+        },
+        headers=headers,
+    )
+    assert invalid_update.status_code == 422
+
+
+def test_admin_cannot_complete_project_with_open_tasks(client: TestClient) -> None:
+    _register_user(client, "completion-parity@example.com")
+    admin_token = _login_admin(client)
+    headers = _headers(admin_token)
+
+    workspace = client.get("/api/v1/admin/workspaces", headers=headers).json()[0]
+    create_project_response = client.post(
+        "/api/v1/admin/projects",
+        json={
+            "workspace_id": workspace["id"],
+            "title": "Open task project",
+            "client_name": "Acme",
+            "status": "active",
+            "contract_type": "fixed_price",
+            "fixed_price_cents": 100000,
+            "payment_cadence": "milestone",
+        },
+        headers=headers,
+    )
+    assert create_project_response.status_code == 201, create_project_response.text
+    project_id = create_project_response.json()["id"]
+
+    create_task_response = client.post(
+        "/api/v1/admin/tasks",
+        json={
+            "project_id": project_id,
+            "title": "Still open",
+            "status": "todo",
+            "priority": "medium",
+            "estimated_minutes": 30,
+        },
+        headers=headers,
+    )
+    assert create_task_response.status_code == 201, create_task_response.text
+
+    complete_update_response = client.put(
+        f"/api/v1/admin/projects/{project_id}",
+        json={"status": "completed"},
+        headers=headers,
+    )
+    assert complete_update_response.status_code == 409

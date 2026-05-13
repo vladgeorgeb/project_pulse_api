@@ -5,9 +5,12 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, ValidationError
-from app.domain.enums import ContractType, PaymentCadence, ProjectStatus
-from app.domain.project_rules import validate_project_completion
+from app.core.exceptions import NotFoundError
+from app.domain.enums import ProjectStatus
+from app.domain.project_rules import (
+    validate_project_billing_and_dates,
+    validate_project_completion,
+)
 from app.models.project import Project
 from app.models.user import User
 from app.repositories.project import PaginatedProjects, ProjectRepository
@@ -113,7 +116,7 @@ class ProjectService:
         billing_notes: str | None,
     ) -> Project:
         workspace = self._workspace_for_user(user)
-        self._validate_contract_fields(
+        validate_project_billing_and_dates(
             contract_type=contract_type,
             hourly_rate_cents=hourly_rate_cents,
             monthly_rate_cents=monthly_rate_cents,
@@ -226,7 +229,7 @@ class ProjectService:
         if billing_notes_provided:
             project.billing_notes = billing_notes.strip() if billing_notes else None
 
-        self._validate_contract_fields(
+        validate_project_billing_and_dates(
             contract_type=project.contract_type,
             hourly_rate_cents=project.hourly_rate_cents,
             monthly_rate_cents=project.monthly_rate_cents,
@@ -278,49 +281,3 @@ class ProjectService:
         if workspace is None:
             raise NotFoundError("Workspace not found.")
         return workspace
-
-    def _validate_contract_fields(
-        self,
-        *,
-        contract_type: str,
-        hourly_rate_cents: int | None,
-        monthly_rate_cents: int | None,
-        fixed_price_cents: int | None,
-        payment_cadence: str,
-        start_date: date | None,
-        estimated_end_date: date | None,
-    ) -> None:
-        if contract_type == ContractType.HOURLY.value and hourly_rate_cents is None:
-            raise ValidationError("hourly contracts require hourly_rate_cents.")
-        if (
-            contract_type == ContractType.MONTHLY_RETAINER.value
-            and monthly_rate_cents is None
-        ):
-            raise ValidationError(
-                "monthly_retainer contracts require monthly_rate_cents."
-            )
-        if (
-            contract_type == ContractType.FIXED_PRICE.value
-            and fixed_price_cents is None
-        ):
-            raise ValidationError("fixed_price contracts require fixed_price_cents.")
-        if (
-            contract_type == ContractType.NON_BILLABLE.value
-            and payment_cadence != PaymentCadence.NONE.value
-        ):
-            raise ValidationError(
-                "non_billable contracts require payment_cadence 'none'."
-            )
-        if (
-            contract_type != ContractType.NON_BILLABLE.value
-            and payment_cadence == PaymentCadence.NONE.value
-        ):
-            raise ValidationError(
-                "payment_cadence 'none' is only valid for non_billable contracts."
-            )
-        if (
-            start_date is not None
-            and estimated_end_date is not None
-            and start_date > estimated_end_date
-        ):
-            raise ValidationError("start_date cannot be later than estimated_end_date.")

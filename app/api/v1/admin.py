@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin
 from app.core.database import get_db
-from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.core.exceptions import (
+    BusinessRuleError,
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+)
 from app.models.user import User
 from app.schemas.admin import (
     AdminProjectCreateRequest,
@@ -268,6 +273,8 @@ def create_project(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BusinessRuleError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return AdminProjectResponse.model_validate(project)
@@ -326,6 +333,8 @@ def update_project(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BusinessRuleError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return AdminProjectResponse.model_validate(project)
