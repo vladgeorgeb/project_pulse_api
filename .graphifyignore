@@ -1,0 +1,34 @@
+# dependencies
+.venv/
+venv/
+node_modules/
+frontend/node_modules/
+
+# build outputs
+dist/
+build/
+frontend/dist/
+frontend/build/
+
+# caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.cache/
+
+# local/runtime files
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+*.log
+
+# generated AI/dev outputs
+graphify-out/

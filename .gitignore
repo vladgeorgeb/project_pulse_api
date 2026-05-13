@@ -35,3 +35,7 @@ frontend/dist/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+
+# Graphify generated artifacts
+graphify-out/
+.graphify_*
