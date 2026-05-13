@@ -84,6 +84,129 @@ def test_payment_records_crud_and_validation(client: TestClient) -> None:
     assert summary["next_payment_due_date"] == (today + timedelta(days=5)).isoformat()
 
 
+def test_create_paid_payment_without_paid_at_autofills_timestamp(
+    client: TestClient,
+) -> None:
+    token = _register(client, "payments-autofill-create@example.com")
+    headers = _headers(token)
+    project = _create_project(client, token)
+
+    paid = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 70000,
+            "currency": "USD",
+            "status": "paid",
+            "method": "wire",
+        },
+        headers=headers,
+    )
+    assert paid.status_code == 201, paid.text
+    payload = paid.json()
+    assert payload["status"] == "paid"
+    assert payload["paid_at"] is not None
+    assert datetime.fromisoformat(payload["paid_at"])
+
+
+def test_create_paid_payment_with_explicit_paid_at_is_preserved(
+    client: TestClient,
+) -> None:
+    token = _register(client, "payments-explicit-create@example.com")
+    headers = _headers(token)
+    project = _create_project(client, token)
+    explicit_paid_at = datetime(2026, 1, 15, 10, 30, 0).isoformat()
+
+    paid = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 81000,
+            "currency": "USD",
+            "status": "paid",
+            "method": "wire",
+            "paid_at": explicit_paid_at,
+        },
+        headers=headers,
+    )
+    assert paid.status_code == 201, paid.text
+    assert paid.json()["paid_at"] == explicit_paid_at
+
+
+def test_update_pending_payment_to_paid_without_paid_at_autofills_timestamp(
+    client: TestClient,
+) -> None:
+    token = _register(client, "payments-autofill-update@example.com")
+    headers = _headers(token)
+    project = _create_project(client, token)
+    today = date.today()
+
+    pending = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 62000,
+            "currency": "USD",
+            "status": "pending",
+            "due_date": (today + timedelta(days=7)).isoformat(),
+        },
+        headers=headers,
+    )
+    assert pending.status_code == 201, pending.text
+    payment_id = pending.json()["id"]
+    assert pending.json()["paid_at"] is None
+
+    paid_update = client.put(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        json={"status": "paid"},
+        headers=headers,
+    )
+    assert paid_update.status_code == 200, paid_update.text
+    payload = paid_update.json()
+    assert payload["status"] == "paid"
+    assert payload["paid_at"] is not None
+    assert datetime.fromisoformat(payload["paid_at"])
+
+
+def test_update_paid_payment_with_explicit_paid_at_is_preserved(
+    client: TestClient,
+) -> None:
+    token = _register(client, "payments-explicit-update@example.com")
+    headers = _headers(token)
+    project = _create_project(client, token)
+    today = date.today()
+
+    pending = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 54000,
+            "currency": "USD",
+            "status": "pending",
+            "due_date": (today + timedelta(days=3)).isoformat(),
+        },
+        headers=headers,
+    )
+    assert pending.status_code == 201, pending.text
+    payment_id = pending.json()["id"]
+
+    first_paid_at = datetime(2026, 2, 2, 9, 0, 0).isoformat()
+    to_paid = client.put(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        json={"status": "paid", "paid_at": first_paid_at},
+        headers=headers,
+    )
+    assert to_paid.status_code == 200, to_paid.text
+    assert to_paid.json()["status"] == "paid"
+    assert to_paid.json()["paid_at"] == first_paid_at
+
+    second_paid_at = datetime(2026, 2, 3, 11, 45, 0).isoformat()
+    paid_update = client.put(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        json={"paid_at": second_paid_at},
+        headers=headers,
+    )
+    assert paid_update.status_code == 200, paid_update.text
+    assert paid_update.json()["status"] == "paid"
+    assert paid_update.json()["paid_at"] == second_paid_at
+
+
 def test_payment_record_read_endpoints_and_isolation(client: TestClient) -> None:
     owner_token = _register(client, "payments-owner@example.com")
     other_token = _register(client, "payments-other@example.com")

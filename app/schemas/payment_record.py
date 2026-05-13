@@ -31,8 +31,6 @@ class PaymentRecordFields(BaseModel):
             raise ValueError("currency must be one of USD, EUR, GBP, or RON.")
         if self.status == PaymentRecordStatus.PENDING and self.due_date is None:
             raise ValueError("pending payments require due_date.")
-        if self.status == PaymentRecordStatus.PAID and self.paid_at is None:
-            raise ValueError("paid payments require paid_at.")
         if (
             self.period_start is not None
             and self.period_end is not None
