@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.observability import set_request_user
 from app.core.security import decode_access_token
 from app.models.user import User
 from app.repositories.user import UserRepository
@@ -14,6 +15,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 def get_current_user(
+    request: Request,
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
 ) -> User:
@@ -32,6 +34,7 @@ def get_current_user(
     user = UserRepository(db).get_by_id(user_id)
     if user is None:
         raise credentials_error
+    set_request_user(request, user.id)
     if get_settings().require_verified_email and not user.email_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

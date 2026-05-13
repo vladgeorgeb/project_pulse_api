@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.exceptions import AuthenticationError, ConflictError, ValidationError
+from app.core.observability import log_business_event
 from app.core.rate_limit import auth_rate_limiter
 from app.models.user import User
 from app.schemas.auth import (
@@ -77,7 +78,14 @@ def register_user(
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    if get_settings().require_verified_email:
+    settings = get_settings()
+    log_business_event(
+        "registration_succeeded",
+        request=request,
+        user_id=user.id,
+        verification_required=settings.require_verified_email,
+    )
+    if settings.require_verified_email:
         response.status_code = status.HTTP_202_ACCEPTED
         return EmailVerificationRequiredResponse(
             message=EMAIL_VERIFICATION_REQUIRED_MESSAGE,
@@ -105,6 +113,11 @@ def login(
             password=form_data.password,
         )
     except AuthenticationError as exc:
+        log_business_event(
+            "login_failed",
+            request=request,
+            reason="invalid_credentials",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
@@ -112,6 +125,7 @@ def login(
         ) from exc
 
     token = service.issue_access_token(user)
+    log_business_event("login_succeeded", request=request, user_id=user.id)
     return TokenResponse(access_token=token)
 
 

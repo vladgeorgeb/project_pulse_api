@@ -30,9 +30,8 @@ class ConsoleEmailBackend:
     def send(self, message: OutboundEmail) -> None:
         local_email_outbox.append(message)
         logger.info(
-            "Stored local email for %s with subject %s.",
-            message.to_email,
-            message.subject,
+            "Stored local email.",
+            extra={"event": "local_email_stored", "email_subject": message.subject},
         )
 
 

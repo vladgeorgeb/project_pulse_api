@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin
@@ -11,6 +11,7 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from app.core.observability import log_business_event
 from app.models.user import User
 from app.schemas.admin import (
     AdminProjectCreateRequest,
@@ -31,6 +32,20 @@ from app.services.admin_service import AdminService
 from app.services.feedback_service import FeedbackService
 
 router = APIRouter(prefix="/admin")
+
+
+def log_admin_internal_endpoint_used(
+    request: Request,
+    current_admin: User = Depends(get_current_admin),
+) -> User:
+    log_business_event(
+        "admin_internal_endpoint_used",
+        request=request,
+        user_id=current_admin.id,
+        method=request.method,
+        path=request.url.path,
+    )
+    return current_admin
 
 
 @router.get(
@@ -57,7 +72,7 @@ def list_feedback(
 )
 def list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> list[AdminUserResponse]:
     return [
         AdminUserResponse.model_validate(user) for user in AdminService(db).list_users()
@@ -73,7 +88,7 @@ def list_users(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminUserResponse:
     service = AdminService(db)
     try:
@@ -93,7 +108,7 @@ def get_user(
 def create_user(
     payload: AdminUserCreateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminUserResponse:
     service = AdminService(db)
     try:
@@ -117,7 +132,7 @@ def update_user(
     user_id: int,
     payload: AdminUserUpdateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminUserResponse:
     service = AdminService(db)
     try:
@@ -143,7 +158,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> None:
     service = AdminService(db)
     try:
@@ -160,7 +175,7 @@ def delete_user(
 )
 def list_workspaces(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> list[AdminWorkspaceResponse]:
     return [
         AdminWorkspaceResponse.model_validate(workspace)
@@ -177,7 +192,7 @@ def list_workspaces(
 def get_workspace(
     workspace_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminWorkspaceResponse:
     service = AdminService(db)
     try:
@@ -197,7 +212,7 @@ def get_workspace(
 def create_workspace(
     payload: AdminWorkspaceCreateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminWorkspaceResponse:
     service = AdminService(db)
     try:
@@ -226,7 +241,7 @@ def update_workspace(
     workspace_id: int,
     payload: AdminWorkspaceUpdateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminWorkspaceResponse:
     service = AdminService(db)
     try:
@@ -255,7 +270,7 @@ def update_workspace(
 def delete_workspace(
     workspace_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> None:
     service = AdminService(db)
     try:
@@ -272,7 +287,7 @@ def delete_workspace(
 )
 def list_projects(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> list[AdminProjectResponse]:
     return [
         AdminProjectResponse.model_validate(project)
@@ -289,7 +304,7 @@ def list_projects(
 def get_project(
     project_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminProjectResponse:
     service = AdminService(db)
     try:
@@ -309,7 +324,7 @@ def get_project(
 def create_project(
     payload: AdminProjectCreateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminProjectResponse:
     service = AdminService(db)
     try:
@@ -351,7 +366,7 @@ def update_project(
     project_id: int,
     payload: AdminProjectUpdateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminProjectResponse:
     service = AdminService(db)
     try:
@@ -415,7 +430,7 @@ def update_project(
 def delete_project(
     project_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> None:
     service = AdminService(db)
     try:
@@ -432,7 +447,7 @@ def delete_project(
 )
 def list_tasks(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> list[AdminTaskResponse]:
     return [
         AdminTaskResponse.model_validate(task) for task in AdminService(db).list_tasks()
@@ -448,7 +463,7 @@ def list_tasks(
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminTaskResponse:
     service = AdminService(db)
     try:
@@ -468,7 +483,7 @@ def get_task(
 def create_task(
     payload: AdminTaskCreateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminTaskResponse:
     service = AdminService(db)
     try:
@@ -497,7 +512,7 @@ def update_task(
     task_id: int,
     payload: AdminTaskUpdateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> AdminTaskResponse:
     service = AdminService(db)
     try:
@@ -528,7 +543,7 @@ def update_task(
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    _: User = Depends(log_admin_internal_endpoint_used),
 ) -> None:
     service = AdminService(db)
     try:

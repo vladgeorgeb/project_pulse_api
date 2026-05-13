@@ -4,7 +4,7 @@ from datetime import date
 from math import ceil
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from app.core.observability import log_business_event
 from app.domain.enums import Priority, ProjectStatus
 from app.models.user import User
 from app.schemas.payment_record import (
@@ -121,6 +122,7 @@ def list_projects(
 )
 def create_project(
     payload: ProjectCreateRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectResponse:
@@ -149,6 +151,14 @@ def create_project(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    log_business_event(
+        "project_created",
+        request=request,
+        user_id=current_user.id,
+        project_id=project.id,
+        workspace_id=project.workspace_id,
+        status=project.status,
+    )
     return to_project_response(project)
 
 
@@ -197,6 +207,7 @@ def list_project_payment_records(
 def create_project_payment_record(
     project_id: int,
     payload: PaymentRecordCreateRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PaymentRecordResponse:
@@ -219,6 +230,14 @@ def create_project_payment_record(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    log_business_event(
+        "payment_created",
+        request=request,
+        user_id=current_user.id,
+        project_id=project_id,
+        payment_record_id=payment_record.id,
+        status=payment_record.status,
+    )
     return PaymentRecordResponse.model_validate(payment_record)
 
 
@@ -252,6 +271,7 @@ def update_project_payment_record(
     project_id: int,
     payment_record_id: int,
     payload: PaymentRecordUpdateRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PaymentRecordResponse:
@@ -282,6 +302,14 @@ def update_project_payment_record(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    log_business_event(
+        "payment_updated",
+        request=request,
+        user_id=current_user.id,
+        project_id=project_id,
+        payment_record_id=payment_record.id,
+        status=payment_record.status,
+    )
     return PaymentRecordResponse.model_validate(payment_record)
 
 
@@ -292,6 +320,7 @@ def update_project_payment_record(
 def delete_project_payment_record(
     project_id: int,
     payment_record_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
@@ -304,12 +333,20 @@ def delete_project_payment_record(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    log_business_event(
+        "payment_deleted",
+        request=request,
+        user_id=current_user.id,
+        project_id=project_id,
+        payment_record_id=payment_record_id,
+    )
 
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
 def update_project(
     project_id: int,
     payload: ProjectUpdateRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectResponse:
@@ -363,6 +400,14 @@ def update_project(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    log_business_event(
+        "project_updated",
+        request=request,
+        user_id=current_user.id,
+        project_id=project.id,
+        workspace_id=project.workspace_id,
+        status=project.status,
+    )
     return to_project_response(project)
 
 
@@ -385,6 +430,7 @@ def delete_project(
 )
 def complete_project(
     project_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectActionResponse:
@@ -395,6 +441,15 @@ def complete_project(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except BusinessRuleError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    log_business_event(
+        "project_updated",
+        request=request,
+        user_id=current_user.id,
+        project_id=project.id,
+        workspace_id=project.workspace_id,
+        status=project.status,
+        action="completed",
+    )
     return ProjectActionResponse(
         message="Project completed successfully.",
         project=to_project_response(project),
@@ -409,6 +464,7 @@ def complete_project(
 def create_task(
     project_id: int,
     payload: TaskCreateRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TaskResponse:
@@ -427,6 +483,14 @@ def create_task(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    log_business_event(
+        "task_created",
+        request=request,
+        user_id=current_user.id,
+        project_id=task.project_id,
+        task_id=task.id,
+        status=task.status,
+    )
     return TaskResponse.model_validate(task)
 
 
@@ -434,6 +498,7 @@ def create_task(
 def update_task(
     task_id: int,
     payload: TaskUpdateRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TaskResponse:
@@ -454,12 +519,21 @@ def update_task(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (BusinessRuleError, ValidationError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    log_business_event(
+        "task_updated",
+        request=request,
+        user_id=current_user.id,
+        project_id=task.project_id,
+        task_id=task.id,
+        status=task.status,
+    )
     return TaskResponse.model_validate(task)
 
 
 @router.post("/tasks/{task_id}/complete", response_model=TaskResponse)
 def complete_task(
     task_id: int,
+    request: Request,
     payload: TaskCompleteRequest | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -475,6 +549,14 @@ def complete_task(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (BusinessRuleError, ValidationError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    log_business_event(
+        "task_completed",
+        request=request,
+        user_id=current_user.id,
+        project_id=task.project_id,
+        task_id=task.id,
+        status=task.status,
+    )
     return TaskResponse.model_validate(task)
 
 

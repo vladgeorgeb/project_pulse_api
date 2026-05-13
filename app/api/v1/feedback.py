@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.core.observability import log_business_event
 from app.models.user import User
 from app.schemas.feedback import FeedbackCreateRequest, FeedbackResponse
 from app.services.feedback_service import FeedbackService
@@ -29,5 +30,12 @@ def create_feedback(
         message=payload.message,
         page_url=payload.page_url,
         user_agent=request.headers.get("user-agent"),
+    )
+    log_business_event(
+        "feedback_submitted",
+        request=request,
+        user_id=current_user.id,
+        feedback_id=feedback.id,
+        category=feedback.category,
     )
     return FeedbackResponse.model_validate(feedback)

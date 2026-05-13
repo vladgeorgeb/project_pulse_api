@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -16,6 +16,12 @@ from app.api.v1.projects import router as projects_router
 from app.api.v1.workspaces import router as workspaces_router
 from app.core.config import get_settings
 from app.core.database import SessionLocal, engine
+from app.core.observability import (
+    configure_logging,
+    log_unhandled_exception,
+    request_logging_middleware,
+    unhandled_exception_response,
+)
 from app.models import (  # noqa: F401
     AuthToken,
     Feedback,
@@ -29,7 +35,7 @@ from app.models.base import Base
 from app.services.bootstrap_service import BootstrapService
 
 settings = get_settings()
-logging.basicConfig(level=settings.log_level)
+configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 
@@ -67,6 +73,15 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.middleware("http")(request_logging_middleware)
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(
+        request: Request,
+        exc: Exception,
+    ) -> JSONResponse:
+        log_unhandled_exception(request, exc)
+        return unhandled_exception_response(request)
 
     @app.get("/health")
     def healthcheck() -> JSONResponse:
