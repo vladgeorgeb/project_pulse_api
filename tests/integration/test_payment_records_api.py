@@ -207,6 +207,84 @@ def test_update_paid_payment_with_explicit_paid_at_is_preserved(
     assert paid_update.json()["paid_at"] == second_paid_at
 
 
+def test_update_payment_to_paid_with_explicit_null_paid_at_is_rejected(
+    client: TestClient,
+) -> None:
+    token = _register(client, "payments-null-paid-at@example.com")
+    headers = _headers(token)
+    project = _create_project(client, token)
+
+    pending = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 54000,
+            "currency": "USD",
+            "status": "pending",
+            "due_date": (date.today() + timedelta(days=3)).isoformat(),
+        },
+        headers=headers,
+    )
+    assert pending.status_code == 201, pending.text
+    payment_id = pending.json()["id"]
+
+    rejected_update = client.put(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        json={"status": "paid", "paid_at": None},
+        headers=headers,
+    )
+
+    assert rejected_update.status_code == 422
+    assert rejected_update.json()["detail"] == "paid payments require paid_at."
+
+    unchanged_payment = client.get(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        headers=headers,
+    )
+    assert unchanged_payment.status_code == 200, unchanged_payment.text
+    assert unchanged_payment.json()["status"] == "pending"
+    assert unchanged_payment.json()["paid_at"] is None
+
+
+def test_update_paid_payment_to_pending_requires_due_date_and_keeps_state(
+    client: TestClient,
+) -> None:
+    token = _register(client, "payments-pending-due-date@example.com")
+    headers = _headers(token)
+    project = _create_project(client, token)
+    paid_at = datetime(2026, 2, 2, 9, 0, 0).isoformat()
+
+    paid = client.post(
+        f"/api/v1/projects/{project['id']}/payments",
+        json={
+            "amount_cents": 91000,
+            "currency": "USD",
+            "status": "paid",
+            "method": "wire",
+            "paid_at": paid_at,
+        },
+        headers=headers,
+    )
+    assert paid.status_code == 201, paid.text
+    payment_id = paid.json()["id"]
+
+    rejected_update = client.put(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        json={"status": "pending", "due_date": None},
+        headers=headers,
+    )
+
+    assert rejected_update.status_code == 422
+    assert rejected_update.json()["detail"] == "pending payments require due_date."
+
+    unchanged_payment = client.get(
+        f"/api/v1/projects/{project['id']}/payments/{payment_id}",
+        headers=headers,
+    )
+    assert unchanged_payment.status_code == 200, unchanged_payment.text
+    assert unchanged_payment.json()["status"] == "paid"
+    assert unchanged_payment.json()["paid_at"] == paid_at
+
+
 def test_payment_record_read_endpoints_and_isolation(client: TestClient) -> None:
     owner_token = _register(client, "payments-owner@example.com")
     other_token = _register(client, "payments-other@example.com")

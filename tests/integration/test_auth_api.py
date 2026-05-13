@@ -499,6 +499,43 @@ def test_expired_token_returns_401(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_token_for_missing_user_returns_401(client: TestClient) -> None:
+    token = create_access_token("999999")
+
+    response = client.get(
+        "/api/v1/workspaces/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Could not validate credentials."
+
+
+def test_verified_email_required_blocks_authenticated_request(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("REQUIRE_VERIFIED_EMAIL", "true")
+    get_settings.cache_clear()
+    try:
+        register_response = client.post(
+            "/api/v1/auth/register",
+            json={"email": "blocked@example.com", "password": "strongpass123"},
+        )
+        assert register_response.status_code == 202, register_response.text
+
+        token = create_access_token("2")
+        response = client.get(
+            "/api/v1/workspaces/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Email address must be verified."
+    finally:
+        get_settings.cache_clear()
+
+
 def test_protected_endpoint_requires_token(client: TestClient) -> None:
     response = client.get("/api/v1/projects")
 

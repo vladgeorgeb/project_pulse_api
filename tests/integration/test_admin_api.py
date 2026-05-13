@@ -182,6 +182,47 @@ def test_non_admin_gets_403_on_admin_routes(client: TestClient) -> None:
     assert response.status_code == 403
 
 
+def test_admin_feedback_route_requires_admin_user(client: TestClient) -> None:
+    user_token = _register_user(client, "feedback-non-admin@example.com")
+
+    response = client.get("/api/v1/admin/feedback", headers=_headers(user_token))
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Administrator privileges required."
+
+
+def test_admin_user_create_conflict_and_missing_workspace_owner_errors(
+    client: TestClient,
+) -> None:
+    _register_user(client, "admin-conflict@example.com")
+    admin_token = _login_admin(client)
+    headers = _headers(admin_token)
+
+    duplicate_user = client.post(
+        "/api/v1/admin/users",
+        json={
+            "email": "admin-conflict@example.com",
+            "password": "strongpass123",
+            "is_admin": False,
+        },
+        headers=headers,
+    )
+    assert duplicate_user.status_code == 409
+
+    invalid_workspace = client.post(
+        "/api/v1/admin/workspaces",
+        json={
+            "user_id": 999999,
+            "name": "Missing owner",
+            "company_name": "Nowhere",
+            "monthly_capacity_hours": 120,
+        },
+        headers=headers,
+    )
+    assert invalid_workspace.status_code == 404
+    assert invalid_workspace.json()["detail"] == "User not found."
+
+
 def test_admin_project_contract_rate_validation_parity(client: TestClient) -> None:
     _register_user(client, "contract-parity@example.com")
     admin_token = _login_admin(client)
