@@ -30,10 +30,15 @@ from app.schemas.feedback import AdminFeedbackResponse
 from app.services.admin_service import AdminService
 from app.services.feedback_service import FeedbackService
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin")
 
 
-@router.get("/feedback", response_model=list[AdminFeedbackResponse])
+@router.get(
+    "/feedback",
+    response_model=list[AdminFeedbackResponse],
+    tags=["admin-feedback"],
+    summary="List feedback submissions (public admin v1 surface)",
+)
 def list_feedback(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin),
@@ -44,7 +49,12 @@ def list_feedback(
     ]
 
 
-@router.get("/users", response_model=list[AdminUserResponse])
+@router.get(
+    "/users",
+    response_model=list[AdminUserResponse],
+    tags=["admin-internal"],
+    summary="List users (operator/internal)",
+)
 def list_users(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin),
@@ -54,7 +64,12 @@ def list_users(
     ]
 
 
-@router.get("/users/{user_id}", response_model=AdminUserResponse)
+@router.get(
+    "/users/{user_id}",
+    response_model=AdminUserResponse,
+    tags=["admin-internal"],
+    summary="Get user by id (operator/internal)",
+)
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -72,6 +87,8 @@ def get_user(
     "/users",
     response_model=AdminUserResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["admin-internal"],
+    summary="Create user (operator/internal)",
 )
 def create_user(
     payload: AdminUserCreateRequest,
@@ -90,7 +107,12 @@ def create_user(
     return AdminUserResponse.model_validate(user)
 
 
-@router.put("/users/{user_id}", response_model=AdminUserResponse)
+@router.put(
+    "/users/{user_id}",
+    response_model=AdminUserResponse,
+    tags=["admin-internal"],
+    summary="Update user (operator/internal)",
+)
 def update_user(
     user_id: int,
     payload: AdminUserUpdateRequest,
@@ -112,7 +134,12 @@ def update_user(
     return AdminUserResponse.model_validate(user)
 
 
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["admin-internal"],
+    summary="Delete user (operator/internal)",
+)
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -125,7 +152,12 @@ def delete_user(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/workspaces", response_model=list[AdminWorkspaceResponse])
+@router.get(
+    "/workspaces",
+    response_model=list[AdminWorkspaceResponse],
+    tags=["admin-internal"],
+    summary="List workspaces (operator/internal)",
+)
 def list_workspaces(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin),
@@ -136,7 +168,12 @@ def list_workspaces(
     ]
 
 
-@router.get("/workspaces/{workspace_id}", response_model=AdminWorkspaceResponse)
+@router.get(
+    "/workspaces/{workspace_id}",
+    response_model=AdminWorkspaceResponse,
+    tags=["admin-internal"],
+    summary="Get workspace by id (operator/internal)",
+)
 def get_workspace(
     workspace_id: int,
     db: Session = Depends(get_db),
@@ -154,6 +191,8 @@ def get_workspace(
     "/workspaces",
     response_model=AdminWorkspaceResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["admin-internal"],
+    summary="Create workspace (operator/internal)",
 )
 def create_workspace(
     payload: AdminWorkspaceCreateRequest,
@@ -177,7 +216,12 @@ def create_workspace(
     return AdminWorkspaceResponse.model_validate(workspace)
 
 
-@router.put("/workspaces/{workspace_id}", response_model=AdminWorkspaceResponse)
+@router.put(
+    "/workspaces/{workspace_id}",
+    response_model=AdminWorkspaceResponse,
+    tags=["admin-internal"],
+    summary="Update workspace (operator/internal)",
+)
 def update_workspace(
     workspace_id: int,
     payload: AdminWorkspaceUpdateRequest,
@@ -202,7 +246,12 @@ def update_workspace(
     return AdminWorkspaceResponse.model_validate(workspace)
 
 
-@router.delete("/workspaces/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/workspaces/{workspace_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["admin-internal"],
+    summary="Delete workspace (operator/internal)",
+)
 def delete_workspace(
     workspace_id: int,
     db: Session = Depends(get_db),
@@ -215,7 +264,12 @@ def delete_workspace(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/projects", response_model=list[AdminProjectResponse])
+@router.get(
+    "/projects",
+    response_model=list[AdminProjectResponse],
+    tags=["admin-internal"],
+    summary="List projects (operator/internal)",
+)
 def list_projects(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin),
@@ -226,7 +280,12 @@ def list_projects(
     ]
 
 
-@router.get("/projects/{project_id}", response_model=AdminProjectResponse)
+@router.get(
+    "/projects/{project_id}",
+    response_model=AdminProjectResponse,
+    tags=["admin-internal"],
+    summary="Get project by id (operator/internal)",
+)
 def get_project(
     project_id: int,
     db: Session = Depends(get_db),
@@ -244,6 +303,8 @@ def get_project(
     "/projects",
     response_model=AdminProjectResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["admin-internal"],
+    summary="Create project (operator/internal)",
 )
 def create_project(
     payload: AdminProjectCreateRequest,
@@ -280,7 +341,12 @@ def create_project(
     return AdminProjectResponse.model_validate(project)
 
 
-@router.put("/projects/{project_id}", response_model=AdminProjectResponse)
+@router.put(
+    "/projects/{project_id}",
+    response_model=AdminProjectResponse,
+    tags=["admin-internal"],
+    summary="Update project (operator/internal)",
+)
 def update_project(
     project_id: int,
     payload: AdminProjectUpdateRequest,
@@ -340,7 +406,12 @@ def update_project(
     return AdminProjectResponse.model_validate(project)
 
 
-@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/projects/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["admin-internal"],
+    summary="Delete project (operator/internal)",
+)
 def delete_project(
     project_id: int,
     db: Session = Depends(get_db),
@@ -353,7 +424,12 @@ def delete_project(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/tasks", response_model=list[AdminTaskResponse])
+@router.get(
+    "/tasks",
+    response_model=list[AdminTaskResponse],
+    tags=["admin-internal"],
+    summary="List tasks (operator/internal)",
+)
 def list_tasks(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin),
@@ -363,7 +439,12 @@ def list_tasks(
     ]
 
 
-@router.get("/tasks/{task_id}", response_model=AdminTaskResponse)
+@router.get(
+    "/tasks/{task_id}",
+    response_model=AdminTaskResponse,
+    tags=["admin-internal"],
+    summary="Get task by id (operator/internal)",
+)
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
@@ -381,6 +462,8 @@ def get_task(
     "/tasks",
     response_model=AdminTaskResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["admin-internal"],
+    summary="Create task (operator/internal)",
 )
 def create_task(
     payload: AdminTaskCreateRequest,
@@ -404,7 +487,12 @@ def create_task(
     return AdminTaskResponse.model_validate(task)
 
 
-@router.put("/tasks/{task_id}", response_model=AdminTaskResponse)
+@router.put(
+    "/tasks/{task_id}",
+    response_model=AdminTaskResponse,
+    tags=["admin-internal"],
+    summary="Update task (operator/internal)",
+)
 def update_task(
     task_id: int,
     payload: AdminTaskUpdateRequest,
@@ -429,7 +517,12 @@ def update_task(
     return AdminTaskResponse.model_validate(task)
 
 
-@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["admin-internal"],
+    summary="Delete task (operator/internal)",
+)
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
