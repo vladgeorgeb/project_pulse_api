@@ -28,11 +28,10 @@ import ProjectComposer from "./components/ProjectComposer";
 import ProjectFiltersPanel from "./components/ProjectFiltersPanel";
 import SummaryCards from "./components/SummaryCards";
 import WorkspaceSettings from "./components/WorkspaceSettings";
-import packageJson from "../package.json";
 
 const TOKEN_STORAGE_KEY = "project-pulse-token";
 const THEME_STORAGE_KEY = "project-pulse-theme";
-const APP_VERSION = packageJson.version;
+const APP_VERSION = __APP_VERSION__;
 
 type Theme = "light" | "dark";
 
@@ -381,7 +380,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <div className="app-version" aria-label={`Project Pulse version ${APP_VERSION}`}>
-        v{APP_VERSION}
+        {APP_VERSION}
       </div>
       <DashboardHeader
         workspace={state.workspace}
