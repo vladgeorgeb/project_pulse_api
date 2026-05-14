@@ -2,9 +2,13 @@
 
 Project Pulse is a FastAPI backend with a React frontend for independent contractors to manage workspaces, projects, tasks, payments, and feedback.
 
-## v1 Product Boundary
+## Public Preview Status
 
-### Public user API (v1)
+Project Pulse is a `v0.1.0` public preview intended as a portfolio/MVP release. It is ready for review, local development, and small hosted demos.
+
+## Product Boundary
+
+### Public user API (v0.1 preview)
 - Auth: register, login, me, password reset request/confirm, email confirm
 - Account: export own account data, delete own account
 - Workspace: get/update `/workspaces/me`
@@ -15,13 +19,13 @@ Project Pulse is a FastAPI backend with a React frontend for independent contrac
 - Feedback submission
 - Health check (`GET /health`)
 
-### Public admin API (v1)
+### Public admin API (v0.1 preview)
 - `GET /api/v1/admin/feedback`
 
-### Operator/internal admin API (not public v1 product)
+### Operator/internal admin API (not public preview product)
 - Remaining admin CRUD endpoints under `/api/v1/admin/*` for users, workspaces, projects, tasks
 
-### Deferred domain (not v1)
+### Deferred domain (not v0.1 preview)
 - Invoice entities and invoice workflows
 
 ## Core Domain Notes
@@ -30,7 +34,7 @@ Project Pulse is a FastAPI backend with a React frontend for independent contrac
 - Status: `planned`, `active`, `paused`, `completed`, `archived`
 - Priority: `low`, `medium`, `high`, `urgent`
 - Contract type: `fixed_price`, `hourly`, `monthly_retainer`, `non_billable`
-- Payment cadence: `manual`, `weekly`, `biweekly`, `monthly`, `none`
+- Payment cadence: `manual`, `weekly`, `biweekly`, `monthly`, `milestone`, `none`
 
 Projects include billing fields such as `billing_currency`, `hourly_rate_cents`, `expected_hours_per_week`, `monthly_rate_cents`, `fixed_price_cents`, `start_date`, `estimated_end_date`, `deadline`, and `billing_notes`.
 
@@ -134,6 +138,21 @@ Frontend API base URL:
 ```text
 http://127.0.0.1:8000/api/v1
 ```
+
+## Screenshots / Demo
+
+Screenshots or a hosted demo link can be added after deployment.
+
+## Production / Hosting Checklist
+
+- Use a production Postgres `DATABASE_URL`, not SQLite.
+- Use a strong, unique `SECRET_KEY`.
+- Set `AUTO_CREATE_TABLES=false` in production.
+- Configure Redis for production rate limiting.
+- Configure an SMTP/email provider.
+- Configure explicit CORS origins; do not use wildcard CORS.
+- Configure frontend `VITE_API_BASE_URL` to point to the hosted backend.
+- Run migrations/setup according to the project docs, including `alembic upgrade head`.
 
 ## Main API Examples
 

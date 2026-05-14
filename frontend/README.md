@@ -8,11 +8,30 @@ confirmation, and in-app feedback capture.
 
 Start the backend from the repository root:
 
+PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Bash:
+
 ```bash
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
 Then start the frontend:
+
+PowerShell:
+
+```powershell
+cd frontend
+Copy-Item .env.example .env
+npm.cmd install
+npm.cmd run dev
+```
+
+Bash:
 
 ```bash
 cd frontend
@@ -46,3 +65,19 @@ Production builds require `VITE_API_BASE_URL`, for example:
 ```env
 VITE_API_BASE_URL=https://your-railway-backend.up.railway.app/api/v1
 ```
+
+Build validation:
+
+PowerShell:
+
+```powershell
+npm.cmd run build
+```
+
+Bash:
+
+```bash
+npm run build
+```
+
+This v0.1.0 public preview currently validates the frontend with the production build; no separate frontend test script is configured.

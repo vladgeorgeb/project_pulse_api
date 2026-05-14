@@ -19,8 +19,8 @@ function getAuthError(error: unknown): string {
 
 export default function AuthPage({ onAuthenticated, initialMode = "login" }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [email, setEmail] = useState("demo@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
