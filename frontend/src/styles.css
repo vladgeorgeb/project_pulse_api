@@ -314,6 +314,91 @@ textarea:focus {
   color: var(--label);
 }
 
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 32px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.theme-switch-track {
+  position: relative;
+  display: block;
+  width: 54px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 26% 35%, rgba(255, 255, 255, 0.55), transparent 4px),
+    linear-gradient(135deg, #1f2b46, #111827 62%, #0f172a);
+  transition: background 0.2s ease;
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-track {
+  background:
+    radial-gradient(circle at 72% 24%, rgba(255, 255, 255, 0.75), transparent 4px),
+    linear-gradient(135deg, #8fb8ff, #c9f0ff 56%, #f8df8b);
+}
+
+.theme-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 36%, var(--control-bg) 0 5px, transparent 5.5px),
+    linear-gradient(135deg, #d8e1f2, #9aa6bb);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.theme-switch[aria-checked="true"] .theme-switch-knob {
+  transform: translateX(26px);
+  background:
+    radial-gradient(circle at 36% 32%, rgba(255, 255, 255, 0.95) 0 3px, transparent 3.5px),
+    linear-gradient(135deg, #ffe18a, #ffb84d);
+}
+
+.theme-switch-icon {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  opacity: 0.82;
+}
+
+.theme-switch-sun {
+  left: 9px;
+  background: #ffe18a;
+  box-shadow: 0 0 0 3px rgba(255, 225, 138, 0.2);
+}
+
+.theme-switch-moon {
+  right: 9px;
+  background: #d8e1f2;
+}
+
+.theme-switch-moon::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #111827;
+}
+
 .danger-button,
 .small-danger-button {
   background: var(--danger-bg);
@@ -358,6 +443,7 @@ textarea:focus {
 .secondary-button:not(:disabled):hover,
 .ghost-button:not(:disabled):hover,
 .theme-toggle-button:not(:disabled):hover,
+.theme-switch:not(:disabled):hover,
 .danger-button:not(:disabled):hover,
 .small-button:not(:disabled):hover,
 .small-secondary-button:not(:disabled):hover,
@@ -388,9 +474,23 @@ textarea:focus {
 }
 
 .app-shell {
+  position: relative;
   width: min(1440px, 100%);
   margin: 0 auto;
   padding: 32px;
+}
+
+.app-version {
+  position: fixed;
+  left: 14px;
+  bottom: 10px;
+  z-index: 5;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  opacity: 0.58;
+  pointer-events: none;
 }
 
 .dashboard-header {

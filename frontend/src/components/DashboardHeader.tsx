@@ -51,8 +51,19 @@ export default function DashboardHeader({
         <button type="button" className="secondary-button utility-button" onClick={onOpenFeedback}>
           Send feedback
         </button>
-        <button type="button" className="theme-toggle-button utility-button" onClick={onToggleTheme}>
-          {theme === "dark" ? "Light mode" : "Dark mode"}
+        <button
+          type="button"
+          className="theme-switch"
+          role="switch"
+          aria-checked={theme === "light"}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          onClick={onToggleTheme}
+        >
+          <span className="theme-switch-track" aria-hidden="true">
+            <span className="theme-switch-icon theme-switch-sun" />
+            <span className="theme-switch-icon theme-switch-moon" />
+            <span className="theme-switch-knob" />
+          </span>
         </button>
         <button type="button" className="secondary-button utility-button" onClick={onRefresh} disabled={isLoading || isMutating}>
           {isLoading ? "Refreshing..." : "Refresh"}
