@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { Workspace } from "../api/types";
 
 type Theme = "light" | "dark";
@@ -29,6 +30,27 @@ export default function DashboardHeader({
   onRefresh,
   onLogout,
 }: DashboardHeaderProps) {
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [isAccountMenuOpen]);
+
+  function selectAccountMenuItem(action: () => void) {
+    setIsAccountMenuOpen(false);
+    action();
+  }
+
   return (
     <header className="dashboard-header">
       <div>
@@ -40,9 +62,6 @@ export default function DashboardHeader({
       </div>
 
       <div className="header-actions">
-        <button type="button" className="secondary-button utility-button" onClick={onOpenAccountSettings}>
-          Account settings
-        </button>
         {isAdmin ? (
           <button type="button" className="secondary-button utility-button" onClick={onOpenAdminFeedback}>
             Admin feedback
@@ -65,12 +84,36 @@ export default function DashboardHeader({
             <span className="theme-switch-knob" />
           </span>
         </button>
-        <button type="button" className="secondary-button utility-button" onClick={onRefresh} disabled={isLoading || isMutating}>
-          {isLoading ? "Refreshing..." : "Refresh"}
-        </button>
-        <button type="button" className="ghost-button utility-button" onClick={onLogout}>
-          Logout
-        </button>
+        <div className="account-menu" ref={accountMenuRef}>
+          <button
+            type="button"
+            className="secondary-button utility-button account-menu-button"
+            aria-haspopup="menu"
+            aria-expanded={isAccountMenuOpen}
+            onClick={() => setIsAccountMenuOpen((current) => !current)}
+          >
+            Account
+            <span className="menu-chevron" aria-hidden="true" />
+          </button>
+          {isAccountMenuOpen ? (
+            <div className="account-menu-panel" role="menu" aria-label="Account menu">
+              <button type="button" role="menuitem" onClick={() => selectAccountMenuItem(onOpenAccountSettings)}>
+                Account settings
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={isLoading || isMutating}
+                onClick={() => selectAccountMenuItem(onRefresh)}
+              >
+                {isLoading ? "Refreshing..." : "Refresh data"}
+              </button>
+              <button type="button" role="menuitem" className="account-menu-danger" onClick={() => selectAccountMenuItem(onLogout)}>
+                Logout
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </header>
   );
