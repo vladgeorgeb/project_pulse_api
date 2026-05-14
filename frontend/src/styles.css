@@ -587,11 +587,27 @@ textarea:focus {
   color: var(--danger-text);
 }
 
+.summary-section {
+  margin-bottom: 16px;
+}
+
+.summary-section-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
 .summary-groups {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
   gap: 12px;
-  margin-bottom: 16px;
+}
+
+.metric-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .metric-group-card,
@@ -614,6 +630,36 @@ textarea:focus {
   margin-bottom: 12px;
 }
 
+.metric-heading-copy {
+  min-width: 0;
+}
+
+.metric-heading-value {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.metric-chevron {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.metric-section-toggle[aria-expanded="true"] .metric-chevron {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.metric-card-detail {
+  display: grid;
+  gap: 8px;
+}
+
 .metric-group-heading span,
 .metric-inline span,
 .metric-card span {
@@ -621,6 +667,14 @@ textarea:focus {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.metric-group-heading .metric-heading-copy {
+  display: block;
+}
+
+.metric-group-heading .metric-heading-value {
+  display: inline-flex;
 }
 
 .metric-group-heading strong {
@@ -1505,6 +1559,14 @@ textarea:focus {
   .sorting-filters-grid,
   .four-column-form {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 821px) {
+  .task-list {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
   }
 }
 
