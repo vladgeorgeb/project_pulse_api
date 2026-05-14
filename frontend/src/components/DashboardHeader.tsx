@@ -57,7 +57,9 @@ export default function DashboardHeader({
         <span className="eyebrow">Project Pulse</span>
         <h1>{workspace?.name ?? "Workspace dashboard"}</h1>
         <p>
-          {workspace?.company_name ?? "Track clients, deliverables, capacity, and billable work."}
+          {workspace
+            ? `${workspace.company_name} · ${workspace.monthly_capacity_hours}h monthly capacity`
+            : "Track clients, deliverables, capacity, and billable work."}
         </p>
       </div>
 

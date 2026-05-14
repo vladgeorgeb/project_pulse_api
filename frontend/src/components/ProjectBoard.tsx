@@ -268,9 +268,9 @@ export default function ProjectBoard({
                   </div>
 
                   <div className="project-values">
-                    {project.fixed_price_cents ? <strong>{centsToUsd(project.fixed_price_cents)}</strong> : null}
-                    {project.hourly_rate_cents ? <span>{centsToUsd(project.hourly_rate_cents)}/h</span> : null}
-                    {project.monthly_rate_cents ? <span>{centsToUsd(project.monthly_rate_cents)}/mo</span> : null}
+                    {project.fixed_price_cents ? <span className="project-amount">{centsToUsd(project.fixed_price_cents)}</span> : null}
+                    {project.hourly_rate_cents ? <span className="project-amount">{centsToUsd(project.hourly_rate_cents)}/h</span> : null}
+                    {project.monthly_rate_cents ? <span className="project-amount">{centsToUsd(project.monthly_rate_cents)}/mo</span> : null}
                   </div>
                 </div>
 

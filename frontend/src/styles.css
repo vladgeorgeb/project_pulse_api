@@ -766,7 +766,7 @@ textarea:focus {
 }
 
 .filters-card.collapsible-card {
-  padding: 20px;
+  padding: 10px 12px;
 }
 
 .panel-heading h2,
@@ -784,6 +784,29 @@ textarea:focus {
 
 .filters-card .compact-panel-heading p {
   margin: 0;
+}
+
+.filters-toolbar-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.filters-toolbar-heading h2 {
+  margin: 0;
+}
+
+.filters-toolbar-heading span,
+.filters-helper-text {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.filters-helper-text {
+  margin: 0 0 14px;
+  line-height: 1.5;
 }
 
 .compact-form {
@@ -811,7 +834,33 @@ textarea:focus {
 }
 
 .filters-card {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+}
+
+.filters-toolbar {
+  align-items: center;
+}
+
+.filters-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.toolbar-action-button {
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.toolbar-utility-button {
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--muted);
 }
 
 .filters-grid {
@@ -865,10 +914,10 @@ textarea:focus {
 
 .pagination-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 800;
@@ -877,7 +926,17 @@ textarea:focus {
 .pagination-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.filters-pagination-actions span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 36px;
+  text-align: center;
+  min-width: 84px;
+  white-space: nowrap;
 }
 
 .project-card {
@@ -910,17 +969,21 @@ textarea:focus {
 }
 
 .project-values {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
   text-align: right;
   white-space: nowrap;
 }
 
-.project-values strong {
-  font-size: 1.25rem;
+.project-amount {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
-.project-values span,
 .project-stats-row span {
   color: var(--muted);
   font-size: 0.84rem;
@@ -1346,6 +1409,10 @@ textarea:focus {
   width: min(680px, 100%);
 }
 
+.project-composer-modal {
+  width: min(760px, 100%);
+}
+
 .feedback-modal-header,
 .feedback-modal-actions {
   display: flex;
@@ -1485,6 +1552,7 @@ textarea:focus {
   }
 
   .project-values {
+    align-items: flex-start;
     text-align: left;
   }
 }

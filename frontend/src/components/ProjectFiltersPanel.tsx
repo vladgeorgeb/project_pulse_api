@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Priority, ProjectFilters, ProjectSortBy, ProjectStatus, SortDir } from "../api/types";
 
 interface ProjectFiltersPanelProps {
   filters: ProjectFilters;
   disabled: boolean;
+  resultSummary?: string;
+  currentPage?: number;
+  totalPages?: number;
+  onPreviousPage?: () => void;
+  onNextPage?: () => void;
+  newProjectAction?: ReactNode;
   onChange: (filters: ProjectFilters) => void;
 }
 
@@ -19,8 +25,19 @@ const sortOptions: Array<{ value: ProjectSortBy; label: string }> = [
   { value: "updated_at", label: "Updated" },
 ];
 
-export default function ProjectFiltersPanel({ filters, disabled, onChange }: ProjectFiltersPanelProps) {
+export default function ProjectFiltersPanel({
+  filters,
+  disabled,
+  resultSummary,
+  currentPage,
+  totalPages,
+  onPreviousPage,
+  onNextPage,
+  newProjectAction,
+  onChange,
+}: ProjectFiltersPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hasPagination = currentPage !== undefined && totalPages !== undefined && onPreviousPage && onNextPage;
 
   function updateFilter(nextFilters: ProjectFilters) {
     onChange({ ...nextFilters, page: 1 });
@@ -28,24 +45,51 @@ export default function ProjectFiltersPanel({ filters, disabled, onChange }: Pro
 
   return (
     <section className="filters-card collapsible-card">
-      <div className="collapsible-card-header">
-        <div className="panel-heading compact-panel-heading">
+      <div className="collapsible-card-header filters-toolbar">
+        <div className="panel-heading compact-panel-heading filters-toolbar-heading">
           <h2>Client projects</h2>
-          <p>Filter client work by delivery state, priority, client, due date, or text search.</p>
+          {resultSummary ? <span>{resultSummary}</span> : null}
         </div>
-        <button
-          type="button"
-          className="secondary-button compact-toggle-button"
-          disabled={disabled}
-          aria-expanded={isExpanded}
-          onClick={() => setIsExpanded((current) => !current)}
-        >
-          {isExpanded ? "Collapse" : "Filters"}
-        </button>
+        <div className="filters-toolbar-actions">
+          {newProjectAction}
+          <button
+            type="button"
+            className="secondary-button compact-toggle-button toolbar-action-button"
+            disabled={disabled}
+            aria-expanded={isExpanded}
+            onClick={() => setIsExpanded((current) => !current)}
+          >
+            {isExpanded ? "Collapse" : "Filters"}
+          </button>
+          {hasPagination ? (
+            <div className="pagination-actions filters-pagination-actions">
+              <button
+                type="button"
+                className="small-secondary-button toolbar-action-button toolbar-utility-button"
+                disabled={disabled || currentPage <= 1}
+                onClick={onPreviousPage}
+              >
+                Previous
+              </button>
+              <span>
+                Page {currentPage} of {Math.max(totalPages, 1)}
+              </span>
+              <button
+                type="button"
+                className="small-secondary-button toolbar-action-button toolbar-utility-button"
+                disabled={disabled || totalPages === 0 || currentPage >= totalPages}
+                onClick={onNextPage}
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {isExpanded ? (
         <div className="collapsible-card-body">
+          <p className="filters-helper-text">Filter client work by delivery state, priority, client, due date, or text search.</p>
           <div className="filters-grid">
             <label>
               Search

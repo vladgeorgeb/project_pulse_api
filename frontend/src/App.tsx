@@ -27,7 +27,6 @@ import ProjectBoard from "./components/ProjectBoard";
 import ProjectComposer from "./components/ProjectComposer";
 import ProjectFiltersPanel from "./components/ProjectFiltersPanel";
 import SummaryCards from "./components/SummaryCards";
-import WorkspaceSettings from "./components/WorkspaceSettings";
 
 const TOKEN_STORAGE_KEY = "project-pulse-token";
 const THEME_STORAGE_KEY = "project-pulse-theme";
@@ -376,6 +375,12 @@ export default function App() {
   const authToken = token;
 
   const isAdmin = currentUser?.is_admin ?? false;
+  const projectResultSummary = state.projectPage
+    ? `Showing ${(state.projectPage.page - 1) * state.projectPage.page_size + 1}-${Math.min(
+        state.projectPage.page * state.projectPage.page_size,
+        state.projectPage.total,
+      )} of ${state.projectPage.total}`
+    : undefined;
 
   return (
     <main className="app-shell">
@@ -429,8 +434,10 @@ export default function App() {
         >
           <AccountSettingsPanel
             isAdmin={isAdmin}
+            workspace={state.workspace}
             disabled={isMutating || isLoading}
             onClose={() => setShowAccountSettings(false)}
+            onSaveWorkspace={(payload) => mutate(() => api.updateWorkspace(authToken, payload))}
             onExport={exportAccountData}
             onDeleteAccount={deleteAccount}
           />
@@ -453,59 +460,28 @@ export default function App() {
         </section>
       ) : null}
 
-      <section className="dashboard-grid">
-        <WorkspaceSettings
-          workspace={state.workspace}
-          disabled={isMutating}
-          onSave={(payload) => mutate(() => api.updateWorkspace(authToken, payload))}
-        />
-        <ProjectComposer
-          disabled={isMutating}
-          onCreate={(payload) => mutate(() => api.createProject(authToken, payload))}
-        />
-      </section>
-
-      <ProjectFiltersPanel filters={filters} onChange={updateFilters} disabled={isLoading || isMutating} />
+      <ProjectFiltersPanel
+        filters={filters}
+        resultSummary={projectResultSummary}
+        currentPage={state.projectPage?.page}
+        totalPages={state.projectPage?.total_pages}
+        onPreviousPage={() => setProjectPage(state.projectPage!.page - 1)}
+        onNextPage={() => setProjectPage(state.projectPage!.page + 1)}
+        newProjectAction={
+          <ProjectComposer
+            placement="toolbar"
+            disabled={isMutating}
+            onCreate={(payload) => mutate(() => api.createProject(authToken, payload))}
+          />
+        }
+        onChange={updateFilters}
+        disabled={isLoading || isMutating}
+      />
 
       {state.projects.length === 0 && !isLoading ? (
         <EmptyState onCreateDemoData={createDemoData} disabled={isMutating} />
       ) : (
         <>
-          {state.projectPage ? (
-            <div className="pagination-bar">
-              <span>
-                Showing {(state.projectPage.page - 1) * state.projectPage.page_size + 1}-
-                {Math.min(state.projectPage.page * state.projectPage.page_size, state.projectPage.total)} of{" "}
-                {state.projectPage.total}
-              </span>
-              <div className="pagination-actions">
-                <button
-                  type="button"
-                  className="small-secondary-button"
-                  disabled={isLoading || isMutating || state.projectPage.page <= 1}
-                  onClick={() => setProjectPage(state.projectPage!.page - 1)}
-                >
-                  Previous
-                </button>
-                <span>
-                  Page {state.projectPage.page} of {Math.max(state.projectPage.total_pages, 1)}
-                </span>
-                <button
-                  type="button"
-                  className="small-secondary-button"
-                  disabled={
-                    isLoading ||
-                    isMutating ||
-                    state.projectPage.total_pages === 0 ||
-                    state.projectPage.page >= state.projectPage.total_pages
-                  }
-                  onClick={() => setProjectPage(state.projectPage!.page + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
           <ProjectBoard
             projects={state.projects}
             disabled={isMutating}

@@ -8,7 +8,6 @@ interface WorkspaceSettingsProps {
 }
 
 export default function WorkspaceSettings({ workspace, disabled, onSave }: WorkspaceSettingsProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [name, setName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [capacityHours, setCapacityHours] = useState(160);
@@ -27,58 +26,41 @@ export default function WorkspaceSettings({ workspace, disabled, onSave }: Works
       company_name: companyName,
       monthly_capacity_hours: capacityHours,
     });
-    setIsExpanded(false);
   }
 
   return (
-    <section className="panel-card collapsible-card">
-      <div className="collapsible-card-header">
-        <div className="panel-heading compact-panel-heading">
-          <h2>Business profile</h2>
-          <p>
-            {workspace
-              ? `${workspace.company_name} - ${workspace.monthly_capacity_hours}h monthly capacity`
-              : "Update your business identity and working capacity."}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="ghost-button compact-toggle-button"
-          disabled={disabled || !workspace}
-          aria-expanded={isExpanded}
-          onClick={() => setIsExpanded((current) => !current)}
-        >
-          {isExpanded ? "Collapse" : "Edit"}
+    <section className="account-section">
+      <h3>Business profile</h3>
+      <p className="muted">
+        {workspace
+          ? `${workspace.company_name} - ${workspace.monthly_capacity_hours}h monthly capacity`
+          : "Update your business identity and working capacity."}
+      </p>
+      <form onSubmit={submit} className="form-stack compact-form">
+        <label>
+          Dashboard name
+          <input value={name} onChange={(event) => setName(event.target.value)} required disabled={disabled || !workspace} />
+        </label>
+        <label>
+          Business name
+          <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required disabled={disabled || !workspace} />
+        </label>
+        <label>
+          Monthly capacity hours
+          <input
+            type="number"
+            min={1}
+            max={744}
+            value={capacityHours}
+            onChange={(event) => setCapacityHours(Number(event.target.value))}
+            required
+            disabled={disabled || !workspace}
+          />
+        </label>
+        <button type="submit" className="secondary-button" disabled={disabled || !workspace}>
+          Save profile
         </button>
-      </div>
-
-      {isExpanded ? (
-        <form onSubmit={submit} className="form-stack compact-form collapsible-card-body">
-          <label>
-            Dashboard name
-            <input value={name} onChange={(event) => setName(event.target.value)} required disabled={disabled} />
-          </label>
-          <label>
-            Business name
-            <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required disabled={disabled} />
-          </label>
-          <label>
-            Monthly capacity hours
-            <input
-              type="number"
-              min={1}
-              max={744}
-              value={capacityHours}
-              onChange={(event) => setCapacityHours(Number(event.target.value))}
-              required
-              disabled={disabled}
-            />
-          </label>
-          <button type="submit" className="secondary-button" disabled={disabled || !workspace}>
-            Save profile
-          </button>
-        </form>
-      ) : null}
+      </form>
     </section>
   );
 }

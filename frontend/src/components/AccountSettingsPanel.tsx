@@ -1,17 +1,23 @@
 import { FormEvent, useState } from "react";
+import type { Workspace } from "../api/types";
+import WorkspaceSettings from "./WorkspaceSettings";
 
 interface AccountSettingsPanelProps {
+  workspace: Workspace | null;
   isAdmin: boolean;
   disabled: boolean;
   onClose: () => void;
+  onSaveWorkspace: (payload: Pick<Workspace, "name" | "company_name" | "monthly_capacity_hours">) => Promise<void>;
   onExport: () => Promise<void>;
   onDeleteAccount: (password: string, confirmAdminSelfDeletion: boolean) => Promise<void>;
 }
 
 export default function AccountSettingsPanel({
+  workspace,
   isAdmin,
   disabled,
   onClose,
+  onSaveWorkspace,
   onExport,
   onDeleteAccount,
 }: AccountSettingsPanelProps) {
@@ -70,6 +76,8 @@ export default function AccountSettingsPanel({
       <div className="account-settings-panel">
         {status ? <div className="form-success">{status}</div> : null}
         {error ? <div className="form-error">{error}</div> : null}
+
+        <WorkspaceSettings workspace={workspace} disabled={disabled} onSave={onSaveWorkspace} />
 
         <section className="account-section">
           <h3>Export my data</h3>
