@@ -118,7 +118,10 @@ export default function SummaryCards({ summary, projects }: SummaryCardsProps) {
 
       <article className="metric-group-card finance-metrics-card">
         <div className="metric-group-heading">
-          <span>Time & billables</span>
+          <div>
+            <span>Work in progress</span>
+            <small>Estimated unbilled work</small>
+          </div>
           <strong>{centsToUsd(summary.billable_value_cents)}</strong>
         </div>
         <div className="metric-grid time-metric-grid">

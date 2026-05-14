@@ -288,26 +288,28 @@ function TaskCard({
             Complete
           </button>
         ) : null}
-        <button
-          type="button"
-          className="small-secondary-button"
-          disabled={disabled}
-          onClick={() => {
-            resetEditForm();
-            setIsEditing((current) => !current);
-            setIsCompleting(false);
-          }}
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          className="small-danger-button"
-          disabled={disabled}
-          onClick={() => onDeleteTask(task.id)}
-        >
-          Delete
-        </button>
+        <div className="task-maintenance-actions">
+          <button
+            type="button"
+            className="small-quiet-button"
+            disabled={disabled}
+            onClick={() => {
+              resetEditForm();
+              setIsEditing((current) => !current);
+              setIsCompleting(false);
+            }}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="small-danger-button low-emphasis-danger"
+            disabled={disabled}
+            onClick={() => onDeleteTask(task.id)}
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -367,38 +369,50 @@ export default function TaskList({
       </div>
 
       <form className="task-form" onSubmit={submit}>
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="New deliverable / task"
-          required
-          disabled={disabled}
-        />
-        <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)} disabled={disabled}>
-          {priorities.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min={0}
-          step={0.5}
-          value={estimatedHours}
-          onChange={(event) => setEstimatedHours(event.target.value)}
-          aria-label="Estimated hours"
-          disabled={disabled}
-        />
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(event) => setDueDate(event.target.value)}
-          aria-label="Due date"
-          disabled={disabled}
-        />
+        <label className="quick-add-field quick-add-title">
+          <span>Task</span>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Add a task or deliverable"
+            required
+            disabled={disabled}
+          />
+        </label>
+        <label className="quick-add-field">
+          <span>Priority</span>
+          <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)} disabled={disabled}>
+            {priorities.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="quick-add-field">
+          <span>Est. hours</span>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={estimatedHours}
+            onChange={(event) => setEstimatedHours(event.target.value)}
+            aria-label="Estimated hours"
+            disabled={disabled}
+          />
+        </label>
+        <label className="quick-add-field">
+          <span>Due date</span>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(event) => setDueDate(event.target.value)}
+            aria-label="Due date"
+            disabled={disabled}
+          />
+        </label>
         <button type="submit" className="small-button" disabled={disabled}>
-          Add
+          Add task
         </button>
       </form>
     </div>

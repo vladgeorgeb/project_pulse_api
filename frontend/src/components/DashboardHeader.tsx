@@ -40,24 +40,24 @@ export default function DashboardHeader({
       </div>
 
       <div className="header-actions">
-        <button type="button" className="secondary-button" onClick={onOpenAccountSettings}>
+        <button type="button" className="secondary-button utility-button" onClick={onOpenAccountSettings}>
           Account settings
         </button>
         {isAdmin ? (
-          <button type="button" className="secondary-button" onClick={onOpenAdminFeedback}>
+          <button type="button" className="secondary-button utility-button" onClick={onOpenAdminFeedback}>
             Admin feedback
           </button>
         ) : null}
-        <button type="button" className="secondary-button" onClick={onOpenFeedback}>
+        <button type="button" className="secondary-button utility-button" onClick={onOpenFeedback}>
           Send feedback
         </button>
-        <button type="button" className="theme-toggle-button" onClick={onToggleTheme}>
+        <button type="button" className="theme-toggle-button utility-button" onClick={onToggleTheme}>
           {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>
-        <button type="button" className="secondary-button" onClick={onRefresh} disabled={isLoading || isMutating}>
+        <button type="button" className="secondary-button utility-button" onClick={onRefresh} disabled={isLoading || isMutating}>
           {isLoading ? "Refreshing..." : "Refresh"}
         </button>
-        <button type="button" className="ghost-button" onClick={onLogout}>
+        <button type="button" className="ghost-button utility-button" onClick={onLogout}>
           Logout
         </button>
       </div>

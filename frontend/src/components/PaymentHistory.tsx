@@ -137,15 +137,21 @@ export default function PaymentHistory({ project, disabled, onCreatePaymentRecor
   );
   const paidTotalCents = sortedPaymentRecords.reduce((total, record) => total + (record.status === "paid" ? getAmountCents(record) : 0), 0);
   const pendingTotalCents = sortedPaymentRecords.reduce((total, record) => total + (record.status === "pending" ? getAmountCents(record) : 0), 0);
+  const overdueCount = sortedPaymentRecords.filter((record) => record.is_overdue).length;
 
   return (
     <section className="payment-history">
       <div className="payment-history-header">
         <div>
-          <strong>Payment history</strong>
-          <span>
-            {sortedPaymentRecords.length} records | {formatPaymentAmount(paidTotalCents, project.billing_currency)} paid | {formatPaymentAmount(pendingTotalCents, project.billing_currency)} pending
-          </span>
+          <strong>Payments</strong>
+          <div className="payment-summary-row" aria-label="Payment summary">
+            <span>{sortedPaymentRecords.length} records</span>
+            <span className="payment-summary-paid">{formatPaymentAmount(paidTotalCents, project.billing_currency)} paid</span>
+            <span className={classNames("payment-summary-pending", pendingTotalCents > 0 ? "has-pending" : undefined)}>
+              {formatPaymentAmount(pendingTotalCents, project.billing_currency)} pending
+            </span>
+            {overdueCount > 0 ? <span className="payment-summary-overdue">{overdueCount} overdue</span> : null}
+          </div>
         </div>
         <button type="button" className="small-secondary-button" disabled={disabled} onClick={() => { setIsAdding((current) => !current); setEditingPaymentRecordId(null); }}>
           {isAdding ? "Close" : "Add payment"}
@@ -166,8 +172,8 @@ export default function PaymentHistory({ project, disabled, onCreatePaymentRecor
               </div>
               {isEditing ? <PaymentRecordForm project={project} disabled={disabled} submitLabel="Save payment" paymentRecord={paymentRecord} onCancel={() => setEditingPaymentRecordId(null)} onSubmit={async (payload) => { await onUpdatePaymentRecord(project.id, paymentRecord.id, payload); setEditingPaymentRecordId(null); }} /> : null}
               <div className="inline-form-actions">
-                <button type="button" className="small-secondary-button" disabled={disabled} onClick={() => { setEditingPaymentRecordId((current) => (current === paymentRecord.id ? null : paymentRecord.id)); setIsAdding(false); }}>{isEditing ? "Close edit" : "Edit"}</button>
-                <button type="button" className="small-danger-button" disabled={disabled} onClick={() => onDeletePaymentRecord(project.id, paymentRecord.id)}>Delete</button>
+                <button type="button" className="small-quiet-button" disabled={disabled} onClick={() => { setEditingPaymentRecordId((current) => (current === paymentRecord.id ? null : paymentRecord.id)); setIsAdding(false); }}>{isEditing ? "Close edit" : "Edit"}</button>
+                <button type="button" className="small-danger-button low-emphasis-danger" disabled={disabled} onClick={() => onDeletePaymentRecord(project.id, paymentRecord.id)}>Delete</button>
               </div>
             </article>
           );
