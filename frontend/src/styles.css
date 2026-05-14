@@ -1342,6 +1342,10 @@ textarea:focus {
   padding: 22px;
 }
 
+.account-settings-modal {
+  width: min(680px, 100%);
+}
+
 .feedback-modal-header,
 .feedback-modal-actions {
   display: flex;

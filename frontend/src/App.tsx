@@ -154,6 +154,19 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (!showAccountSettings) return;
+
+    function closeAccountSettingsOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowAccountSettings(false);
+      }
+    }
+
+    document.addEventListener("keydown", closeAccountSettingsOnEscape);
+    return () => document.removeEventListener("keydown", closeAccountSettingsOnEscape);
+  }, [showAccountSettings]);
+
+  useEffect(() => {
     void refresh();
   }, [refresh]);
 
@@ -377,7 +390,7 @@ export default function App() {
         isMutating={isMutating}
         theme={theme}
         onOpenAccountSettings={() => {
-          setShowAccountSettings((current) => !current);
+          setShowAccountSettings(true);
           if (showAdminFeedback) setShowAdminFeedback(false);
         }}
         onOpenAdminFeedback={() => {
@@ -407,20 +420,27 @@ export default function App() {
         onSubmit={sendFeedback}
       />
 
-      {error ? <div className="notice">{error}</div> : null}
-
-      {state.summary ? <SummaryCards summary={state.summary} projects={state.projects} /> : null}
-
       {showAccountSettings ? (
-        <section className="dashboard-grid">
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowAccountSettings(false);
+          }}
+        >
           <AccountSettingsPanel
             isAdmin={isAdmin}
             disabled={isMutating || isLoading}
+            onClose={() => setShowAccountSettings(false)}
             onExport={exportAccountData}
             onDeleteAccount={deleteAccount}
           />
-        </section>
+        </div>
       ) : null}
+
+      {error ? <div className="notice">{error}</div> : null}
+
+      {state.summary ? <SummaryCards summary={state.summary} projects={state.projects} /> : null}
 
       {showAdminFeedback && isAdmin ? (
         <section className="dashboard-grid">
