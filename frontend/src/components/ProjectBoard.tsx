@@ -1,18 +1,20 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import type {
   ContractType,
   PaymentCadence,
+  PaymentRecord,
   PaymentRecordCreatePayload,
   PaymentRecordUpdatePayload,
   Priority,
   Project,
   ProjectStatus,
   ProjectUpdatePayload,
+  Task,
   TaskCreatePayload,
   TaskStatus,
   TaskUpdatePayload,
 } from "../api/types";
-import { centsToUsd, classNames, formatDate, usdToCents } from "../utils/format";
+import { classNames, formatDate, usdToCents } from "../utils/format";
 import PaymentHistory from "./PaymentHistory";
 import TaskList from "./TaskList";
 
@@ -44,6 +46,13 @@ interface ProjectEditFormProps {
   onSave: (projectId: number, payload: ProjectUpdatePayload) => Promise<void>;
 }
 
+interface DueSignal {
+  label: string;
+  detail: string | null;
+  date: string | null;
+  className?: string;
+}
+
 const priorities: Priority[] = ["low", "medium", "high", "urgent"];
 const editableProjectStatuses: ProjectStatus[] = ["planned", "active", "paused", "completed", "archived"];
 const contractTypes: ContractType[] = ["fixed_price", "hourly", "monthly_retainer", "non_billable"];
@@ -65,28 +74,100 @@ function isArchivedProject(project: Project): boolean {
   return project.status === "archived";
 }
 
-function estimateProjectCardHeight(project: Project): number {
-  const descriptionLines = Math.ceil((project.description?.length ?? 0) / 80);
-  const paymentRecordHeight = Math.max(project.payment_records.length, 1) * 72;
-  const taskHeight = project.tasks.reduce((total, task) => {
-    const taskDescriptionLines = Math.ceil((task.description?.length ?? 0) / 72);
-    return total + 86 + taskDescriptionLines * 18;
-  }, 0);
-
-  return 300 + descriptionLines * 22 + paymentRecordHeight + taskHeight;
+function isOpenProject(project: Project): boolean {
+  return project.status !== "completed" && project.status !== "archived";
 }
 
-function distributeProjects(projects: Project[]): Project[][] {
-  const columns: Project[][] = [[], []];
-  const columnHeights = [0, 0];
+function formatHours(value: number): string {
+  if (!Number.isFinite(value)) return "0h";
+  const rounded = Math.round(value * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}h`;
+}
 
-  projects.forEach((project) => {
-    const columnIndex = columnHeights[0] <= columnHeights[1] ? 0 : 1;
-    columns[columnIndex].push(project);
-    columnHeights[columnIndex] += estimateProjectCardHeight(project);
+function formatCurrency(valueCents: number | null | undefined, currency = "USD", suffix = ""): string {
+  if (!valueCents || valueCents <= 0) return suffix ? `$0${suffix}` : "$0";
+  const value = valueCents / 100;
+  const formatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+  return `${formatted}${suffix}`;
+}
+
+function formatPaymentTotal(records: PaymentRecord[], status: "paid" | "pending", fallbackCurrency: string): string {
+  const matchingRecords = records.filter((record) => record.status === status && record.amount_cents > 0);
+  if (matchingRecords.length === 0) return "$0";
+
+  const currencies = new Set(matchingRecords.map((record) => record.currency || fallbackCurrency));
+  if (currencies.size > 1) return "Mixed";
+
+  const currency = matchingRecords[0]?.currency || fallbackCurrency;
+  const total = matchingRecords.reduce((sum, record) => sum + record.amount_cents, 0);
+  return formatCurrency(total, currency);
+}
+
+function getBillingDisplay(project: Project): string {
+  if (project.contract_type === "non_billable") return "Non-billable";
+  if (project.contract_type === "fixed_price") return formatCurrency(project.fixed_price_cents, project.billing_currency);
+  if (project.contract_type === "monthly_retainer") return formatCurrency(project.monthly_rate_cents, project.billing_currency, "/mo");
+  return formatCurrency(project.hourly_rate_cents, project.billing_currency, "/h");
+}
+
+function parseDateOnly(value: string | null): Date | null {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function daysUntil(value: string | null, today: Date): number | null {
+  const parsed = parseDateOnly(value);
+  if (!parsed) return null;
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.ceil((parsed.getTime() - startOfToday.getTime()) / 86_400_000);
+}
+
+function getProjectDueSignal(project: Project): DueSignal {
+  const today = new Date();
+  const candidates: Array<{ label: string; date: string }> = [];
+
+  if (isOpenProject(project) && project.deadline) {
+    candidates.push({ label: "Deadline", date: project.deadline });
+  }
+
+  project.tasks.forEach((task) => {
+    if (task.status !== "done" && task.due_date) {
+      candidates.push({ label: "Task due", date: task.due_date });
+    }
   });
 
-  return columns;
+  project.payment_records.forEach((record) => {
+    if (record.status === "pending" && record.due_date) {
+      candidates.push({ label: "Payment due", date: record.due_date });
+    }
+  });
+
+  const nearest = candidates.sort((first, second) => first.date.localeCompare(second.date))[0];
+  if (!nearest) return { label: "No upcoming task", detail: null, date: null, className: "quiet" };
+
+  const days = daysUntil(nearest.date, today);
+  if (days !== null && days < 0) {
+    return { label: "Overdue", detail: `${nearest.label} ${formatDate(nearest.date)}`, date: nearest.date, className: "overdue" };
+  }
+  if (days !== null && days <= 7) {
+    return { label: "Due soon", detail: `${nearest.label} ${formatDate(nearest.date)}`, date: nearest.date, className: "soon" };
+  }
+  return { label: "On track", detail: `${nearest.label} ${formatDate(nearest.date)}`, date: nearest.date };
+}
+
+function getTaskSummary(tasks: Task[]): string {
+  const openTasks = tasks.filter((task) => task.status !== "done").length;
+  const blockedTasks = tasks.filter((task) => task.status === "blocked").length;
+  const completedTasks = tasks.filter((task) => task.status === "done").length;
+
+  if (tasks.length === 0) return "No tasks yet";
+  if (blockedTasks > 0) return `${blockedTasks} blocked, ${openTasks} open`;
+  return `${openTasks} open, ${completedTasks} done`;
 }
 
 function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFormProps) {
@@ -242,53 +323,136 @@ export default function ProjectBoard({
   onDeleteProject,
 }: ProjectBoardProps) {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
-  const projectColumns = useMemo(() => distributeProjects(projects), [projects]);
+  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<number>>(() => new Set());
+
+  function toggleExpanded(projectId: number) {
+    setExpandedProjectIds((current) => {
+      const next = new Set(current);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  }
 
   return (
-    <section className="project-board">
-      {projectColumns.map((column, columnIndex) => (
-        <div className="project-board-column" key={columnIndex}>
-          {column.map((project) => {
-            const blockedCompletion = hasOpenTasks(project);
-            const isArchived = isArchivedProject(project);
-            const isEditingProject = editingProjectId === project.id;
-            const showContractInfo = project.contract_type !== "fixed_price";
+    <section className="project-board" aria-label="Projects">
+      <div className="project-board-header" aria-hidden="true">
+        <span>Project</span>
+        <span>Value</span>
+        <span>Hours</span>
+        <span>Paid</span>
+        <span>Progress</span>
+        <span>Next action</span>
+        <span />
+      </div>
 
-            return (
-              <article className="project-card" key={project.id}>
-                <div className="project-card-header">
-                  <div>
-                    <div className="project-meta-row">
-                      <span className={classNames("status-pill", project.status)}>{project.status}</span>
-                      <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
-                      {showContractInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
+      {projects.map((project) => {
+        const blockedCompletion = hasOpenTasks(project);
+        const isArchived = isArchivedProject(project);
+        const isEditingProject = editingProjectId === project.id;
+        const isExpanded = expandedProjectIds.has(project.id);
+        const showContractInfo = project.contract_type !== "fixed_price";
+        const dueSignal = getProjectDueSignal(project);
+        const paidTotal = formatPaymentTotal(project.payment_records, "paid", project.billing_currency);
+        const pendingTotal = formatPaymentTotal(project.payment_records, "pending", project.billing_currency);
+        const progressPercent = Math.min(Math.max(project.progress_percent, 0), 100);
+        const detailsId = `project-details-${project.id}`;
+        const hasProjectValue =
+          project.contract_type !== "non_billable" &&
+          Boolean(project.fixed_price_cents || project.monthly_rate_cents || project.hourly_rate_cents);
+        const hasPaidAmount = project.payment_records.some((record) => record.status === "paid" && record.amount_cents > 0);
+
+        return (
+          <article className={classNames("project-card", isExpanded ? "expanded" : undefined)} key={project.id}>
+            <div className="project-row-main">
+              <div className="project-title-cell">
+                <h3>{project.title}</h3>
+                <p>{project.client_name}</p>
+                <div className="project-meta-row">
+                  <span className={classNames("status-pill", project.status)}>{optionLabel(project.status)}</span>
+                  <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
+                  {showContractInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
+                </div>
+              </div>
+
+              <div className="project-row-cell project-value-cell" aria-label="Value">
+                <strong className={classNames(!hasProjectValue ? "quiet-value" : undefined)}>{getBillingDisplay(project)}</strong>
+              </div>
+
+              <div className="project-row-cell project-hours-cell" aria-label="Estimated and actual hours">
+                <strong>
+                  <span>{formatHours(project.estimated_hours)}</span>
+                  <small>/ {formatHours(project.actual_hours)}</small>
+                </strong>
+              </div>
+
+              <div className="project-row-cell" aria-label="Paid amount">
+                <strong className={classNames(!hasPaidAmount ? "quiet-value" : undefined)}>{paidTotal}</strong>
+              </div>
+
+              <div
+                className={classNames("project-row-cell", "project-progress-cell", progressPercent === 0 ? "empty-progress" : undefined)}
+                aria-label="Progress"
+              >
+                <div className="project-progress-label">
+                  <strong>{progressPercent}%</strong>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+                </div>
+              </div>
+
+              <div className="project-row-cell project-due-cell" aria-label="Next action">
+                <strong className={classNames("project-attention-chip", dueSignal.className)}>{dueSignal.label}</strong>
+                {dueSignal.detail ? <small>{dueSignal.detail}</small> : null}
+              </div>
+
+              <button
+                type="button"
+                className="project-expand-button"
+                aria-expanded={isExpanded}
+                aria-controls={detailsId}
+                onClick={() => toggleExpanded(project.id)}
+              >
+                <span className="screen-reader-only">{isExpanded ? "Collapse project" : "Expand project"}</span>
+                <span className="project-expand-chevron" aria-hidden="true" />
+              </button>
+            </div>
+
+            {isExpanded ? (
+              <div className="project-card-details" id={detailsId}>
+                <div className="project-detail-summary">
+                  <div className="project-detail-copy">
+                    <span className="detail-label">Description</span>
+                    <p>{project.description || "No description yet."}</p>
+                    {project.billing_notes ? (
+                      <>
+                        <span className="detail-label">Billing notes</span>
+                        <p>{project.billing_notes}</p>
+                      </>
+                    ) : null}
+                  </div>
+
+                  <div className="project-detail-metrics" aria-label="Project detail summary">
+                    <div>
+                      <span>Tasks</span>
+                      <strong>{getTaskSummary(project.tasks)}</strong>
                     </div>
-                    <h3>{project.title}</h3>
-                    <p>{project.client_name}</p>
-                  </div>
-
-                  <div className="project-values">
-                    {project.fixed_price_cents ? <span className="project-amount">{centsToUsd(project.fixed_price_cents)}</span> : null}
-                    {project.hourly_rate_cents ? <span className="project-amount">{centsToUsd(project.hourly_rate_cents)}/h</span> : null}
-                    {project.monthly_rate_cents ? <span className="project-amount">{centsToUsd(project.monthly_rate_cents)}/mo</span> : null}
-                  </div>
-                </div>
-
-                {project.description ? <p className="project-description">{project.description}</p> : null}
-
-                <div className="project-stats-row">
-                  <span>Deadline: {formatDate(project.deadline)}</span>
-                  <span>Estimated: {project.estimated_hours.toFixed(1)}h</span>
-                  <span>Actual: {project.actual_hours.toFixed(1)}h</span>
-                </div>
-
-                <div className="progress-block">
-                  <div className="progress-label">
-                    <span>Progress</span>
-                    <strong>{project.progress_percent}%</strong>
-                  </div>
-                  <div className="progress-track">
-                    <div className="progress-fill" style={{ width: `${project.progress_percent}%` }} />
+                    <div>
+                      <span>Payment records</span>
+                      <strong>{project.payment_records.length}</strong>
+                    </div>
+                    <div>
+                      <span>Pending</span>
+                      <strong>{pendingTotal}</strong>
+                    </div>
+                    <div>
+                      <span>Cadence</span>
+                      <strong>{optionLabel(project.payment_cadence)}</strong>
+                    </div>
                   </div>
                 </div>
 
@@ -345,11 +509,11 @@ export default function ProjectBoard({
                     Delete
                   </button>
                 </div>
-              </article>
-            );
-          })}
-        </div>
-      ))}
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
     </section>
   );
 }

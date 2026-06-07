@@ -446,7 +446,7 @@ export default function App() {
 
       {error ? <div className="notice">{error}</div> : null}
 
-      {state.summary ? <SummaryCards summary={state.summary} projects={state.projects} /> : null}
+      {state.summary ? <SummaryCards summary={state.summary} workspace={state.workspace} projects={state.projects} /> : null}
 
       {showAdminFeedback && isAdmin ? (
         <section className="dashboard-grid">

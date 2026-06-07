@@ -164,11 +164,12 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 3px 7px;
   background: var(--primary-soft);
   color: var(--primary-soft-text);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
   text-transform: capitalize;
 }
 
@@ -288,6 +289,7 @@ textarea:focus {
 .small-quiet-button {
   border: 0;
   border-radius: 14px;
+  min-height: 40px;
   padding: 12px 16px;
   font-weight: 900;
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
@@ -410,6 +412,7 @@ textarea:focus {
 .small-warning-button,
 .small-danger-button,
 .small-quiet-button {
+  min-height: 34px;
   padding: 9px 12px;
   font-size: 0.8rem;
 }
@@ -477,7 +480,7 @@ textarea:focus {
   position: relative;
   width: min(1440px, 100%);
   margin: 0 auto;
-  padding: 32px;
+  padding: 22px 32px 32px;
 }
 
 .app-version {
@@ -497,12 +500,18 @@ textarea:focus {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 28px;
+  gap: 18px;
+  margin-bottom: 16px;
 }
 
 .dashboard-header h1 {
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: clamp(1.85rem, 4vw, 3.35rem);
+  margin: 4px 0 6px;
+}
+
+.dashboard-header p {
+  margin-top: 0;
+  line-height: 1.55;
 }
 
 .header-actions,
@@ -591,167 +600,93 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
-.summary-section-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
-.summary-groups {
+.business-snapshot-card {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: start;
   gap: 12px;
+  padding: 14px 18px 16px;
+  border: 1px solid color-mix(in oklab, var(--panel-border) 78%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--panel-bg) 96%, transparent), color-mix(in oklab, var(--surface-soft) 46%, transparent));
+  box-shadow: 0 16px 38px color-mix(in oklab, var(--panel-shadow) 72%, transparent);
 }
 
-.metric-section-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.metric-group-card,
-.metric-card {
-  padding: 16px;
-}
-
-.metric-group-card {
-  border: 1px solid var(--panel-border);
-  border-radius: 18px;
-  background: var(--panel-bg);
-  box-shadow: 0 14px 34px var(--panel-shadow);
-}
-
-.metric-group-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.metric-heading-copy {
+.business-snapshot-content {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) repeat(3, minmax(180px, 1fr));
+  gap: 0;
   min-width: 0;
 }
 
-.metric-heading-value {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.metric-chevron {
-  width: 9px;
-  height: 9px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  color: var(--muted);
-  transform: translateY(-2px) rotate(45deg);
-  transition: transform 0.15s ease;
-}
-
-.metric-section-toggle[aria-expanded="true"] .metric-chevron {
-  transform: translateY(2px) rotate(225deg);
-}
-
-.metric-card-detail {
+.business-snapshot-section {
   display: grid;
-  gap: 8px;
-}
-
-.metric-group-heading span,
-.metric-inline span,
-.metric-card span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.metric-group-heading .metric-heading-copy {
-  display: block;
-}
-
-.metric-group-heading .metric-heading-value {
-  display: inline-flex;
-}
-
-.metric-group-heading strong {
-  font-size: 1.55rem;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  text-align: right;
-}
-
-.metric-group-heading small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.metric-grid {
-  display: grid;
-  gap: 8px;
-}
-
-.compact-metric-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.time-metric-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.metric-inline {
+  gap: 4px;
+  align-content: start;
   min-width: 0;
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--surface-soft);
+  padding: 0 18px;
 }
 
-.metric-inline strong,
-.metric-card strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 1.12rem;
-  line-height: 1.1;
-  letter-spacing: -0.04em;
+.business-snapshot-section:first-child {
+  padding-left: 0;
 }
 
-.metric-inline small {
-  display: block;
-  margin-top: 4px;
+.business-snapshot-section + .business-snapshot-section {
+  border-left: 1px solid color-mix(in oklab, var(--panel-border) 58%, transparent);
+}
+
+.business-snapshot-section > span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.business-snapshot-section strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-snapshot-section small,
+.business-snapshot-section em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
   font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.danger-metric strong {
-  color: var(--danger-text);
-}
-
-.warning-metric strong {
-  color: var(--warning-text);
-}
-
-.success-metric strong {
+.business-snapshot-section.snapshot-good strong {
   color: var(--success-text);
 }
 
-.capacity-inline {
-  grid-column: span 1;
+.business-snapshot-section.snapshot-warning strong {
+  color: var(--warning-text);
 }
 
-.capacity-inline .progress-track {
-  margin-top: 10px;
+.business-snapshot-section.snapshot-danger strong {
+  color: color-mix(in oklab, var(--danger-text) 84%, var(--text));
 }
 
-.capacity-card {
-  grid-column: span 2;
+.snapshot-capacity-bar {
+  width: min(168px, 100%);
+  height: 7px;
+  margin-top: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--progress-track);
+}
+
+.snapshot-capacity-bar div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), var(--accent-green));
 }
 
 .progress-track {
@@ -955,15 +890,42 @@ textarea:focus {
 
 .project-board {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: 20px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  box-shadow: 0 16px 38px color-mix(in oklab, var(--panel-shadow) 74%, transparent);
 }
 
-.project-board-column {
+.project-board-header {
   display: grid;
-  gap: 20px;
-  align-content: start;
+  grid-template-columns:
+    minmax(300px, 1.85fr)
+    minmax(96px, 0.48fr)
+    minmax(108px, 0.52fr)
+    minmax(90px, 0.42fr)
+    minmax(98px, 0.44fr)
+    minmax(128px, 0.58fr)
+    30px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  background: color-mix(in oklab, var(--surface-soft) 72%, transparent);
+}
+
+.project-board-header span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.project-board-header span:nth-child(2),
+.project-board-header span:nth-child(3),
+.project-board-header span:nth-child(4),
+.project-board-header span:nth-child(5) {
+  text-align: right;
 }
 
 .pagination-bar {
@@ -994,27 +956,54 @@ textarea:focus {
 }
 
 .project-card {
-  padding: 24px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.project-card-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
+.project-card + .project-card {
+  border-top: 1px solid color-mix(in oklab, var(--panel-border) 72%, transparent);
+}
+
+.project-card.expanded {
+  background: color-mix(in oklab, var(--surface-soft) 34%, transparent);
+}
+
+.project-row-main {
+  display: grid;
+  grid-template-columns:
+    minmax(300px, 1.85fr)
+    minmax(96px, 0.48fr)
+    minmax(108px, 0.52fr)
+    minmax(90px, 0.42fr)
+    minmax(98px, 0.44fr)
+    minmax(128px, 0.58fr)
+    30px;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 14px;
+}
+
+.project-title-cell {
+  min-width: 0;
 }
 
 .project-meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-top: 7px;
 }
 
 .project-card h3 {
-  margin: 0 0 4px;
-  font-size: 1.5rem;
-  letter-spacing: -0.04em;
+  margin: 0 0 3px;
+  overflow: hidden;
+  font-size: 0.98rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-card p {
@@ -1022,41 +1011,232 @@ textarea:focus {
   color: var(--muted);
 }
 
-.project-values {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  align-items: flex-end;
-  text-align: right;
+.project-title-cell p {
+  overflow: hidden;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.project-amount {
+.project-row-cell {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.project-value-cell,
+.project-hours-cell,
+.project-row-main > .project-row-cell:nth-child(4),
+.project-progress-cell {
+  justify-items: end;
+  text-align: right;
+}
+
+.project-due-cell {
+  justify-items: start;
+  text-align: left;
+}
+
+.detail-label,
+.project-detail-metrics span {
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.76rem;
   font-weight: 800;
+}
+
+.project-row-cell strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.92rem;
   line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-row-cell .quiet-value {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.project-value-cell strong {
+  font-size: 1rem;
+}
+
+.project-hours-cell strong {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+}
+
+.project-hours-cell small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.project-progress-cell {
+  gap: 6px;
+}
+
+.project-progress-label {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.project-progress-label strong {
+  flex: 0 0 auto;
+  font-size: 0.86rem;
+}
+
+.project-progress-cell .progress-track {
+  width: min(92px, 100%);
+  height: 7px;
+}
+
+.project-progress-cell.empty-progress .progress-track {
+  width: 52px;
+  background: color-mix(in oklab, var(--progress-track) 48%, transparent);
+}
+
+.project-progress-cell.empty-progress .progress-fill {
+  opacity: 0;
+}
+
+.project-progress-cell.empty-progress strong {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.project-due-cell small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.project-attention-chip {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--neutral-bg);
+  color: var(--neutral-text);
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.project-attention-chip.quiet {
+  background: transparent;
+  color: var(--muted);
+  padding-left: 0;
+}
+
+.project-attention-chip.soon {
+  background: color-mix(in oklab, var(--warning-bg) 72%, transparent);
+  color: var(--warning-text);
+}
+
+.project-attention-chip.overdue {
+  background: color-mix(in oklab, var(--danger-bg) 44%, transparent);
+  color: color-mix(in oklab, var(--danger-text) 84%, var(--text));
+}
+
+.project-expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+}
+
+.project-expand-button:not(:disabled):hover {
+  background: var(--ghost-bg);
+  color: var(--text);
+}
+
+.project-expand-chevron {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.project-expand-button[aria-expanded="true"] .project-expand-chevron {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.project-card-details {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid var(--panel-border);
+  background: color-mix(in oklab, var(--surface-soft) 62%, transparent);
+}
+
+.project-detail-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 18px;
+}
+
+.project-detail-copy {
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+.project-detail-copy p {
+  color: var(--label);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.project-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  align-content: start;
+}
+
+.project-detail-metrics div {
+  display: grid;
+  gap: 5px;
+}
+
+.project-detail-metrics strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.project-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
 }
 
 .project-stats-row span {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 700;
   overflow-wrap: anywhere;
-}
-
-.project-description {
-  margin-top: 16px !important;
-  line-height: 1.6;
 }
 
 .project-edit-form {
   display: grid;
   gap: 12px;
-  margin: 18px 0;
   padding: 14px;
   border: 1px solid var(--panel-border);
-  border-radius: 20px;
+  border-radius: 8px;
   background: var(--control-bg);
 }
 
@@ -1070,19 +1250,6 @@ textarea:focus {
   font-weight: 800;
 }
 
-.project-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.progress-block {
-  display: grid;
-  gap: 8px;
-  margin: 18px 0;
-}
-
 .progress-label {
   display: flex;
   justify-content: space-between;
@@ -1093,49 +1260,49 @@ textarea:focus {
 
 .status-pill.active,
 .status-pill.in_progress {
-  background: var(--primary-soft);
+  background: color-mix(in oklab, var(--primary-soft) 76%, transparent);
   color: var(--primary-soft-text);
 }
 
 .status-pill.completed,
 .status-pill.done {
-  background: var(--success-bg);
+  background: color-mix(in oklab, var(--success-bg) 76%, transparent);
   color: var(--success-text);
 }
 
 .status-pill.paused {
-  background: var(--warning-bg);
+  background: color-mix(in oklab, var(--warning-bg) 76%, transparent);
   color: var(--warning-text);
 }
 
 .status-pill.blocked {
-  background: var(--danger-bg);
+  background: color-mix(in oklab, var(--danger-bg) 76%, transparent);
   color: var(--danger-text);
 }
 
 .status-pill.archived {
-  background: var(--neutral-bg);
+  background: color-mix(in oklab, var(--neutral-bg) 76%, transparent);
   color: var(--neutral-text);
 }
 
 .priority-pill.urgent,
 .priority-pill.high {
-  background: var(--danger-bg);
+  background: color-mix(in oklab, var(--danger-bg) 68%, transparent);
   color: var(--danger-text);
 }
 
 .priority-pill.medium {
-  background: var(--warning-bg);
+  background: color-mix(in oklab, var(--warning-bg) 68%, transparent);
   color: var(--warning-text);
 }
 
 .priority-pill.low {
-  background: var(--success-bg);
+  background: color-mix(in oklab, var(--success-bg) 68%, transparent);
   color: var(--success-text);
 }
 
 .contract-pill {
-  background: var(--neutral-bg);
+  background: color-mix(in oklab, var(--neutral-bg) 72%, transparent);
   color: var(--neutral-text);
 }
 
@@ -1190,11 +1357,9 @@ textarea:focus {
 .payment-history {
   display: grid;
   gap: 10px;
-  margin-top: 16px;
-  padding: 12px;
-  border: 1px solid var(--panel-border);
-  border-radius: 14px;
-  background: var(--surface-soft);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .payment-history-header,
@@ -1225,7 +1390,7 @@ textarea:focus {
   align-items: center;
   min-height: 24px;
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   background: var(--neutral-bg);
   color: var(--neutral-text);
 }
@@ -1272,10 +1437,10 @@ textarea:focus {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 12px;
-  padding: 8px 10px;
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  background: var(--control-bg);
+  padding: 9px 10px;
+  border: 1px solid color-mix(in oklab, var(--panel-border) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--control-bg) 78%, transparent);
 }
 
 .payment-record-row p {
@@ -1290,7 +1455,7 @@ textarea:focus {
 .payment-record-form {
   padding: 12px;
   border: 1px solid var(--panel-border);
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--control-bg);
 }
 
@@ -1305,7 +1470,6 @@ textarea:focus {
 .task-section {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
 }
 
 .task-list {
@@ -1318,9 +1482,9 @@ textarea:focus {
   justify-content: space-between;
   gap: 14px;
   padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  background: var(--surface-soft);
+  border: 1px solid color-mix(in oklab, var(--panel-border) 64%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--control-bg) 72%, transparent);
 }
 
 .task-card.expanded {
@@ -1363,7 +1527,7 @@ textarea:focus {
   margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--panel-border);
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--control-bg);
 }
 
@@ -1422,8 +1586,7 @@ textarea:focus {
 }
 
 .project-actions {
-  margin-top: 20px;
-  padding-top: 18px;
+  padding-top: 2px;
   border-top: 1px solid var(--progress-track);
 }
 
@@ -1436,6 +1599,17 @@ textarea:focus {
 
 .muted {
   color: var(--muted) !important;
+}
+
+.screen-reader-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .modal-backdrop {
@@ -1540,18 +1714,43 @@ textarea:focus {
 }
 
 @media (max-width: 1180px) {
-  .summary-groups,
-  .project-board {
+  .business-snapshot-content {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .finance-metrics-card,
-  .billing-metrics-card {
-    grid-column: 1 / -1;
+  .business-snapshot-section:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
   }
 
-  .capacity-card {
+  .business-snapshot-section:nth-child(n + 3) {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in oklab, var(--panel-border) 54%, transparent);
+  }
+
+  .project-board-header,
+  .project-row-main {
+    grid-template-columns:
+      minmax(260px, 1.7fr)
+      minmax(96px, 0.5fr)
+      minmax(108px, 0.55fr)
+      minmax(118px, 0.62fr)
+      30px;
+  }
+
+  .project-due-cell {
     grid-column: span 1;
+  }
+
+  .project-progress-cell {
+    grid-column: 2 / span 2;
+  }
+
+  .project-expand-button {
+    grid-column: 5;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
 
   .dashboard-grid,
@@ -1584,28 +1783,84 @@ textarea:focus {
   .feedback-modal-header,
   .feedback-modal-actions,
   .pagination-bar,
-  .project-card-header,
   .task-card {
     flex-direction: column;
   }
 
-  .summary-groups,
-  .project-board,
+  .business-snapshot-content,
   .two-column-form,
   .three-column-form,
   .four-column-form,
-  .task-form,
-  .compact-metric-grid,
-  .time-metric-grid {
+  .task-form {
     grid-template-columns: 1fr;
   }
 
-  .finance-metrics-card {
-    grid-column: auto;
+  .business-snapshot-card {
+    padding: 14px;
   }
 
-  .billing-metrics-card {
-    grid-column: auto;
+  .business-snapshot-section,
+  .business-snapshot-section:first-child {
+    padding: 0;
+    border-left: 0;
+  }
+
+  .business-snapshot-section + .business-snapshot-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in oklab, var(--panel-border) 54%, transparent);
+    border-left: 0;
+  }
+
+  .business-snapshot-section strong,
+  .business-snapshot-section small,
+  .business-snapshot-section em {
+    white-space: normal;
+  }
+
+  .project-board-header {
+    display: none;
+  }
+
+  .project-row-main {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .project-title-cell,
+  .project-row-cell,
+  .project-progress-cell,
+  .project-due-cell {
+    grid-column: 1;
+  }
+
+  .project-expand-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .project-card h3,
+  .project-title-cell p,
+  .project-row-cell strong {
+    white-space: normal;
+  }
+
+  .project-value-cell,
+  .project-hours-cell,
+  .project-row-main > .project-row-cell:nth-child(4),
+  .project-progress-cell,
+  .project-due-cell {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .project-progress-label {
+    justify-content: flex-start;
+  }
+
+  .project-detail-summary,
+  .project-detail-metrics {
+    grid-template-columns: 1fr;
   }
 
   .collapsible-card-header {
@@ -1613,8 +1868,4 @@ textarea:focus {
     flex-direction: column;
   }
 
-  .project-values {
-    align-items: flex-start;
-    text-align: left;
-  }
 }

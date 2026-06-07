@@ -102,7 +102,7 @@ function TaskCard({
         </div>
         {task.description ? <p className="task-description">{task.description}</p> : null}
         <p>
-          {task.priority} priority · estimated {minutesToHours(task.estimated_minutes)}h · actual {minutesToHours(task.actual_minutes)}h · due {formatDate(task.due_date)}
+          {task.priority} priority / estimated {minutesToHours(task.estimated_minutes)}h / actual {minutesToHours(task.actual_minutes)}h / due {formatDate(task.due_date)}
         </p>
 
         {isEditing ? (
