@@ -6,7 +6,12 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
-from app.domain.enums import ProjectStatus
+from app.domain.enums import (
+    BillingModel,
+    ContractType,
+    ProjectStatus,
+    WorkSourceType,
+)
 from app.domain.project_rules import (
     validate_project_billing_and_dates,
     validate_project_completion,
@@ -104,9 +109,13 @@ class ProjectService:
         status: str,
         priority: str,
         contract_type: str,
+        source_type: str | None,
+        legal_channel: str,
+        billing_model: str | None,
         billing_currency: str,
         hourly_rate_cents: int | None,
         expected_hours_per_week: Decimal | None,
+        monthly_commitment_hours: Decimal | None,
         monthly_rate_cents: int | None,
         fixed_price_cents: int | None,
         start_date: date | None,
@@ -116,6 +125,10 @@ class ProjectService:
         billing_notes: str | None,
     ) -> Project:
         workspace = self._workspace_for_user(user)
+        resolved_source_type = source_type or self._infer_source_type(contract_type)
+        resolved_billing_model = billing_model or self._infer_billing_model(
+            contract_type
+        )
         validate_project_billing_and_dates(
             contract_type=contract_type,
             hourly_rate_cents=hourly_rate_cents,
@@ -135,9 +148,13 @@ class ProjectService:
             status=status,
             priority=priority,
             contract_type=contract_type,
+            source_type=resolved_source_type,
+            legal_channel=legal_channel,
+            billing_model=resolved_billing_model,
             billing_currency=billing_currency.strip().upper(),
             hourly_rate_cents=hourly_rate_cents,
             expected_hours_per_week=expected_hours_per_week,
+            monthly_commitment_hours=monthly_commitment_hours,
             monthly_rate_cents=monthly_rate_cents,
             fixed_price_cents=fixed_price_cents,
             start_date=start_date,
@@ -169,10 +186,15 @@ class ProjectService:
         status: str | None,
         priority: str | None,
         contract_type: str | None,
+        source_type: str | None,
+        legal_channel: str | None,
+        billing_model: str | None,
         billing_currency: str | None,
         hourly_rate_cents: int | None,
         expected_hours_per_week: Decimal | None,
         expected_hours_per_week_provided: bool,
+        monthly_commitment_hours: Decimal | None,
+        monthly_commitment_hours_provided: bool,
         monthly_rate_cents: int | None,
         monthly_rate_cents_provided: bool,
         fixed_price_cents: int | None,
@@ -208,12 +230,24 @@ class ProjectService:
             project.priority = priority
         if contract_type is not None:
             project.contract_type = contract_type
+            if source_type is None:
+                project.source_type = self._infer_source_type(contract_type)
+            if billing_model is None:
+                project.billing_model = self._infer_billing_model(contract_type)
+        if source_type is not None:
+            project.source_type = source_type
+        if legal_channel is not None:
+            project.legal_channel = legal_channel
+        if billing_model is not None:
+            project.billing_model = billing_model
         if billing_currency is not None:
             project.billing_currency = billing_currency.strip().upper()
         if hourly_rate_cents is not None:
             project.hourly_rate_cents = hourly_rate_cents
         if expected_hours_per_week_provided:
             project.expected_hours_per_week = expected_hours_per_week
+        if monthly_commitment_hours_provided:
+            project.monthly_commitment_hours = monthly_commitment_hours
         if monthly_rate_cents_provided:
             project.monthly_rate_cents = monthly_rate_cents
         if fixed_price_cents_provided:
@@ -281,3 +315,19 @@ class ProjectService:
         if workspace is None:
             raise NotFoundError("Workspace not found.")
         return workspace
+
+    def _infer_source_type(self, contract_type: str) -> str:
+        if contract_type == ContractType.HOURLY.value:
+            return WorkSourceType.HOURLY_PROJECT.value
+        if contract_type == ContractType.MONTHLY_RETAINER.value:
+            return WorkSourceType.RETAINER.value
+        return WorkSourceType.FIXED_PROJECT.value
+
+    def _infer_billing_model(self, contract_type: str) -> str:
+        if contract_type == ContractType.HOURLY.value:
+            return BillingModel.HOURLY.value
+        if contract_type == ContractType.MONTHLY_RETAINER.value:
+            return BillingModel.RETAINER.value
+        if contract_type == ContractType.NON_BILLABLE.value:
+            return BillingModel.FIXED.value
+        return BillingModel.FIXED.value

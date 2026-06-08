@@ -136,9 +136,19 @@ def create_project(
             status=payload.status.value,
             priority=payload.priority.value,
             contract_type=payload.contract_type.value,
+            source_type=(
+                payload.source_type.value if payload.source_type is not None else None
+            ),
+            legal_channel=payload.legal_channel.value,
+            billing_model=(
+                payload.billing_model.value
+                if payload.billing_model is not None
+                else None
+            ),
             billing_currency=payload.billing_currency,
             hourly_rate_cents=payload.hourly_rate_cents,
             expected_hours_per_week=payload.expected_hours_per_week,
+            monthly_commitment_hours=payload.monthly_commitment_hours,
             monthly_rate_cents=payload.monthly_rate_cents,
             fixed_price_cents=payload.fixed_price_cents,
             start_date=payload.start_date,
@@ -366,10 +376,27 @@ def update_project(
                 if payload.contract_type is not None
                 else None
             ),
+            source_type=(
+                payload.source_type.value if payload.source_type is not None else None
+            ),
+            legal_channel=(
+                payload.legal_channel.value
+                if payload.legal_channel is not None
+                else None
+            ),
+            billing_model=(
+                payload.billing_model.value
+                if payload.billing_model is not None
+                else None
+            ),
             billing_currency=payload.billing_currency,
             expected_hours_per_week=payload.expected_hours_per_week,
             expected_hours_per_week_provided=(
                 "expected_hours_per_week" in payload.model_fields_set
+            ),
+            monthly_commitment_hours=payload.monthly_commitment_hours,
+            monthly_commitment_hours_provided=(
+                "monthly_commitment_hours" in payload.model_fields_set
             ),
             monthly_rate_cents=payload.monthly_rate_cents,
             monthly_rate_cents_provided=(
@@ -451,7 +478,7 @@ def complete_project(
         action="completed",
     )
     return ProjectActionResponse(
-        message="Project completed successfully.",
+        message="Source closed successfully.",
         project=to_project_response(project),
     )
 

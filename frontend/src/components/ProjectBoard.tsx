@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
 import type {
+  BillingModel,
   ContractType,
+  LegalChannel,
   PaymentCadence,
   PaymentRecord,
   PaymentRecordCreatePayload,
@@ -13,6 +15,7 @@ import type {
   TaskCreatePayload,
   TaskStatus,
   TaskUpdatePayload,
+  WorkSourceType,
 } from "../api/types";
 import { classNames, formatDate, usdToCents } from "../utils/format";
 import PaymentHistory from "./PaymentHistory";
@@ -20,6 +23,7 @@ import TaskList from "./TaskList";
 
 interface ProjectBoardProps {
   projects: Project[];
+  selectedMonth: string;
   disabled: boolean;
   onUpdateProject: (projectId: number, payload: ProjectUpdatePayload) => Promise<void>;
   onCreatePaymentRecord: (projectId: number, payload: PaymentRecordCreatePayload) => Promise<void>;
@@ -56,10 +60,19 @@ interface DueSignal {
 const priorities: Priority[] = ["low", "medium", "high", "urgent"];
 const editableProjectStatuses: ProjectStatus[] = ["planned", "active", "paused", "completed", "archived"];
 const contractTypes: ContractType[] = ["fixed_price", "hourly", "monthly_retainer", "non_billable"];
+const sourceTypes: WorkSourceType[] = ["employment", "freelance", "retainer", "fixed_project", "hourly_project"];
+const legalChannels: LegalChannel[] = ["personal", "pfa", "srl", "cim"];
+const billingModels: BillingModel[] = ["fixed", "hourly", "salary", "retainer"];
 const paymentCadences: PaymentCadence[] = ["weekly", "biweekly", "monthly", "milestone", "manual", "none"];
 
 function centsToUsdInput(cents: number): string {
   return Number((cents / 100).toFixed(2)).toString();
+}
+
+function decimalToNumber(value: string | number | null): number {
+  if (value === null) return 0;
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function optionLabel(value: string): string {
@@ -107,11 +120,61 @@ function formatPaymentTotal(records: PaymentRecord[], status: "paid" | "pending"
   return formatCurrency(total, currency);
 }
 
+function getMonthRange(selectedMonth: string): { start: Date; end: Date } {
+  const start = new Date(`${selectedMonth}-01T00:00:00`);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+  return { start, end };
+}
+
+function isDateInMonth(value: string | null | undefined, selectedMonth: string): boolean {
+  if (!value) return false;
+  const parsed = parseDateOnly(value.slice(0, 10));
+  if (!parsed) return false;
+  const { start, end } = getMonthRange(selectedMonth);
+  return parsed >= start && parsed <= end;
+}
+
+function getProjectMonthlyMetrics(project: Project, selectedMonth: string) {
+  const monthlyCommitmentHours = decimalToNumber(project.monthly_commitment_hours);
+  const monthTasks = project.tasks.filter((task) => isDateInMonth(task.due_date, selectedMonth));
+  const committedHours =
+    monthlyCommitmentHours > 0
+      ? monthlyCommitmentHours
+      : monthTasks.reduce((total, task) => total + task.estimated_minutes / 60, 0);
+  const actualHours = project.tasks.reduce((total, task) => {
+    const completedInMonth = isDateInMonth(task.completed_at, selectedMonth);
+    const dueInMonth = isDateInMonth(task.due_date, selectedMonth);
+    return completedInMonth || (!task.completed_at && dueInMonth) ? total + task.actual_minutes / 60 : total;
+  }, 0);
+  const receivedCents = project.payment_records.reduce(
+    (total, record) => (record.status === "paid" && isDateInMonth(record.paid_at, selectedMonth) ? total + record.amount_cents : total),
+    0,
+  );
+  const expectedCents = project.payment_records.reduce(
+    (total, record) =>
+      record.status !== "cancelled" && isDateInMonth(record.due_date, selectedMonth) ? total + record.amount_cents : total,
+    0,
+  );
+  const pendingCents = project.payment_records.reduce(
+    (total, record) => (record.status === "pending" ? total + record.amount_cents : total),
+    0,
+  );
+  return { committedHours, actualHours, receivedCents, expectedCents, pendingCents };
+}
+
 function getBillingDisplay(project: Project): string {
   if (project.contract_type === "non_billable") return "Non-billable";
   if (project.contract_type === "fixed_price") return formatCurrency(project.fixed_price_cents, project.billing_currency);
   if (project.contract_type === "monthly_retainer") return formatCurrency(project.monthly_rate_cents, project.billing_currency, "/mo");
   return formatCurrency(project.hourly_rate_cents, project.billing_currency, "/h");
+}
+
+function getSourceKindDisplay(project: Project): string {
+  const parts = [optionLabel(project.source_type), optionLabel(project.legal_channel)];
+  if (project.billing_model === "hourly" && project.hourly_rate_cents) {
+    parts.push(formatCurrency(project.hourly_rate_cents, project.billing_currency, "/h"));
+  }
+  return parts.join(" · ");
 }
 
 function parseDateOnly(value: string | null): Date | null {
@@ -176,7 +239,15 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
   const [description, setDescription] = useState(project.description ?? "");
   const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [priority, setPriority] = useState<Priority>(project.priority);
+  const [sourceType, setSourceType] = useState<WorkSourceType>(project.source_type);
+  const [legalChannel, setLegalChannel] = useState<LegalChannel>(project.legal_channel);
+  const [billingModel, setBillingModel] = useState<BillingModel>(project.billing_model);
   const [hourlyRateUsd, setHourlyRateUsd] = useState(centsToUsdInput(project.hourly_rate_cents ?? 0));
+  const [monthlyRateUsd, setMonthlyRateUsd] = useState(centsToUsdInput(project.monthly_rate_cents ?? 0));
+  const [fixedPriceUsd, setFixedPriceUsd] = useState(centsToUsdInput(project.fixed_price_cents ?? 0));
+  const [monthlyCommitmentHours, setMonthlyCommitmentHours] = useState(
+    project.monthly_commitment_hours === null ? "" : decimalToNumber(project.monthly_commitment_hours).toString(),
+  );
   const [contractType, setContractType] = useState<ContractType>(project.contract_type);
   const [paymentCadence, setPaymentCadence] = useState<PaymentCadence>(project.payment_cadence);
   const [currency, setCurrency] = useState(project.billing_currency);
@@ -191,7 +262,13 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
       description: description.trim() || null,
       status,
       priority,
+      source_type: sourceType,
+      legal_channel: legalChannel,
+      billing_model: billingModel,
       hourly_rate_cents: contractType === "hourly" ? usdToCents(hourlyRateUsd) : null,
+      monthly_rate_cents: contractType === "monthly_retainer" ? usdToCents(monthlyRateUsd) : null,
+      fixed_price_cents: contractType === "fixed_price" ? usdToCents(fixedPriceUsd) : null,
+      monthly_commitment_hours: monthlyCommitmentHours ? Number(monthlyCommitmentHours) : null,
       contract_type: contractType,
       payment_cadence: contractType === "non_billable" ? "none" : paymentCadence,
       billing_currency: normalizedCurrency,
@@ -240,6 +317,39 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
           </select>
         </label>
         <label>
+          Source type
+          <select value={sourceType} onChange={(event) => setSourceType(event.target.value as WorkSourceType)} disabled={disabled}>
+            {sourceTypes.map((item) => (
+              <option key={item} value={item}>
+                {optionLabel(item)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="four-column-form">
+        <label>
+          Legal channel
+          <select value={legalChannel} onChange={(event) => setLegalChannel(event.target.value as LegalChannel)} disabled={disabled}>
+            {legalChannels.map((item) => (
+              <option key={item} value={item}>
+                {optionLabel(item)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Billing model
+          <select value={billingModel} onChange={(event) => setBillingModel(event.target.value as BillingModel)} disabled={disabled}>
+            {billingModels.map((item) => (
+              <option key={item} value={item}>
+                {optionLabel(item)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           Hourly rate ({currency})
           <input
             type="number"
@@ -247,6 +357,17 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
             step={1}
             value={hourlyRateUsd}
             onChange={(event) => setHourlyRateUsd(event.target.value)}
+            disabled={disabled}
+          />
+        </label>
+        <label>
+          Monthly commitment h
+          <input
+            type="number"
+            min={0}
+            step={0.25}
+            value={monthlyCommitmentHours}
+            onChange={(event) => setMonthlyCommitmentHours(event.target.value)}
             disabled={disabled}
           />
         </label>
@@ -294,9 +415,34 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
         </label>
       </div>
 
+      <div className="two-column-form">
+        <label>
+          Monthly salary/retainer ({currency})
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={monthlyRateUsd}
+            onChange={(event) => setMonthlyRateUsd(event.target.value)}
+            disabled={disabled}
+          />
+        </label>
+        <label>
+          Fixed price ({currency})
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={fixedPriceUsd}
+            onChange={(event) => setFixedPriceUsd(event.target.value)}
+            disabled={disabled}
+          />
+        </label>
+      </div>
+
       <div className="inline-form-actions">
         <button type="submit" className="small-button" disabled={disabled}>
-          Save project
+          Save source
         </button>
         <button type="button" className="small-secondary-button" disabled={disabled} onClick={onCancel}>
           Cancel
@@ -308,6 +454,7 @@ function ProjectEditForm({ project, disabled, onCancel, onSave }: ProjectEditFor
 
 export default function ProjectBoard({
   projects,
+  selectedMonth,
   disabled,
   onUpdateProject,
   onCreatePaymentRecord,
@@ -338,12 +485,12 @@ export default function ProjectBoard({
   }
 
   return (
-    <section className="project-board" aria-label="Projects">
+    <section className="project-board" aria-label="Work sources">
       <div className="project-board-header" aria-hidden="true">
-        <span>Project</span>
+        <span>Source</span>
         <span>Value</span>
-        <span>Hours</span>
-        <span>Paid</span>
+        <span>This month</span>
+        <span>Income</span>
         <span>Progress</span>
         <span>Next action</span>
         <span />
@@ -356,14 +503,13 @@ export default function ProjectBoard({
         const isExpanded = expandedProjectIds.has(project.id);
         const showContractInfo = project.contract_type !== "fixed_price";
         const dueSignal = getProjectDueSignal(project);
-        const paidTotal = formatPaymentTotal(project.payment_records, "paid", project.billing_currency);
         const pendingTotal = formatPaymentTotal(project.payment_records, "pending", project.billing_currency);
         const progressPercent = Math.min(Math.max(project.progress_percent, 0), 100);
+        const monthMetrics = getProjectMonthlyMetrics(project, selectedMonth);
         const detailsId = `project-details-${project.id}`;
         const hasProjectValue =
           project.contract_type !== "non_billable" &&
           Boolean(project.fixed_price_cents || project.monthly_rate_cents || project.hourly_rate_cents);
-        const hasPaidAmount = project.payment_records.some((record) => record.status === "paid" && record.amount_cents > 0);
 
         return (
           <article className={classNames("project-card", isExpanded ? "expanded" : undefined)} key={project.id}>
@@ -372,6 +518,7 @@ export default function ProjectBoard({
                 <h3>{project.title}</h3>
                 <p>{project.client_name}</p>
                 <div className="project-meta-row">
+                  <span className="contract-pill">{getSourceKindDisplay(project)}</span>
                   <span className={classNames("status-pill", project.status)}>{optionLabel(project.status)}</span>
                   <span className={classNames("priority-pill", project.priority)}>{project.priority}</span>
                   {showContractInfo ? <span className="contract-pill">{optionLabel(project.contract_type)}</span> : null}
@@ -384,25 +531,34 @@ export default function ProjectBoard({
 
               <div className="project-row-cell project-hours-cell" aria-label="Estimated and actual hours">
                 <strong>
-                  <span>{formatHours(project.estimated_hours)}</span>
-                  <small>/ {formatHours(project.actual_hours)}</small>
+                  <span>{formatHours(monthMetrics.committedHours)}</span>
+                  <small>/ {formatHours(monthMetrics.actualHours)} worked</small>
                 </strong>
               </div>
 
-              <div className="project-row-cell" aria-label="Paid amount">
-                <strong className={classNames(!hasPaidAmount ? "quiet-value" : undefined)}>{paidTotal}</strong>
+              <div className="project-row-cell" aria-label="Income amount">
+                <strong className={classNames(monthMetrics.pendingCents <= 0 ? "quiet-value" : undefined)}>
+                  {formatCurrency(monthMetrics.pendingCents, project.billing_currency)}
+                </strong>
+                <small>pending</small>
               </div>
 
-              <div
-                className={classNames("project-row-cell", "project-progress-cell", progressPercent === 0 ? "empty-progress" : undefined)}
-                aria-label="Progress"
-              >
-                <div className="project-progress-label">
-                  <strong>{progressPercent}%</strong>
-                </div>
-                <div className="progress-track">
-                  <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
-                </div>
+              <div className={classNames("project-row-cell", "project-progress-cell", !project.show_progress ? "empty-progress" : undefined)} aria-label="Progress">
+                {project.show_progress ? (
+                  <>
+                    <div className="project-progress-label">
+                      <strong>{progressPercent}%</strong>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <strong>{formatCurrency(monthMetrics.expectedCents, project.billing_currency)}</strong>
+                    <small>expected</small>
+                  </>
+                )}
               </div>
 
               <div className="project-row-cell project-due-cell" aria-label="Next action">
@@ -417,7 +573,7 @@ export default function ProjectBoard({
                 aria-controls={detailsId}
                 onClick={() => toggleExpanded(project.id)}
               >
-                <span className="screen-reader-only">{isExpanded ? "Collapse project" : "Expand project"}</span>
+                <span className="screen-reader-only">{isExpanded ? "Collapse source" : "Expand source"}</span>
                 <span className="project-expand-chevron" aria-hidden="true" />
               </button>
             </div>
@@ -442,7 +598,7 @@ export default function ProjectBoard({
                       <strong>{getTaskSummary(project.tasks)}</strong>
                     </div>
                     <div>
-                      <span>Payment records</span>
+                      <span>Income records</span>
                       <strong>{project.payment_records.length}</strong>
                     </div>
                     <div>
@@ -491,16 +647,16 @@ export default function ProjectBoard({
                     disabled={disabled}
                     onClick={() => setEditingProjectId((current) => (current === project.id ? null : project.id))}
                   >
-                    {isEditingProject ? "Close edit" : "Edit project"}
+                    {isEditingProject ? "Close edit" : "Edit source"}
                   </button>
                   <button
                     type="button"
                     className="secondary-button"
                     disabled={disabled || project.status === "completed" || blockedCompletion}
-                    title={blockedCompletion ? "Complete all tasks before completing the project" : undefined}
+                    title={blockedCompletion ? "Complete all tasks before closing the source" : undefined}
                     onClick={() => onCompleteProject(project.id)}
                   >
-                    Complete project
+                    Close source
                   </button>
                   <button type="button" className="ghost-button" disabled={disabled} onClick={() => onArchiveProject(project)}>
                     {isArchived ? "Unarchive" : "Archive"}

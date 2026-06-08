@@ -8,11 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.domain.constants import MAX_TASK_ESTIMATE_MINUTES
 from app.domain.enums import (
+    BillingModel,
     ContractType,
+    LegalChannel,
     PaymentCadence,
     Priority,
     ProjectStatus,
     TaskStatus,
+    WorkSourceType,
 )
 from app.schemas.payment_record import PaymentRecordResponse
 
@@ -62,9 +65,13 @@ class TaskCompleteRequest(BaseModel):
 
 class ProjectBillingFields(BaseModel):
     contract_type: ContractType = ContractType.FIXED_PRICE
+    source_type: WorkSourceType | None = None
+    legal_channel: LegalChannel = LegalChannel.PERSONAL
+    billing_model: BillingModel | None = None
     billing_currency: str = Field(default="USD", min_length=3, max_length=3)
     hourly_rate_cents: int | None = Field(default=None, ge=1, le=1_000_000)
     expected_hours_per_week: Decimal | None = Field(default=None, ge=0)
+    monthly_commitment_hours: Decimal | None = Field(default=None, ge=0)
     monthly_rate_cents: int | None = Field(default=None, ge=1, le=100_000_000)
     fixed_price_cents: int | None = Field(default=None, ge=1, le=100_000_000)
     start_date: date | None = None
@@ -79,6 +86,13 @@ class ProjectBillingFields(BaseModel):
 
     @model_validator(mode="after")
     def validate_contract_fields(self) -> "ProjectBillingFields":
+        if self.billing_model is not None:
+            if self.billing_model == BillingModel.HOURLY:
+                self.contract_type = ContractType.HOURLY
+            elif self.billing_model in {BillingModel.SALARY, BillingModel.RETAINER}:
+                self.contract_type = ContractType.MONTHLY_RETAINER
+            elif self.billing_model == BillingModel.FIXED:
+                self.contract_type = ContractType.FIXED_PRICE
         if self.contract_type == ContractType.HOURLY and self.hourly_rate_cents is None:
             raise ValueError("hourly contracts require hourly_rate_cents.")
         if (
@@ -128,9 +142,13 @@ class ProjectUpdateRequest(BaseModel):
     status: ProjectStatus | None = None
     priority: Priority | None = None
     contract_type: ContractType | None = None
+    source_type: WorkSourceType | None = None
+    legal_channel: LegalChannel | None = None
+    billing_model: BillingModel | None = None
     billing_currency: str | None = Field(default=None, min_length=3, max_length=3)
     hourly_rate_cents: int | None = Field(default=None, ge=1, le=1_000_000)
     expected_hours_per_week: Decimal | None = Field(default=None, ge=0)
+    monthly_commitment_hours: Decimal | None = Field(default=None, ge=0)
     monthly_rate_cents: int | None = Field(default=None, ge=1, le=100_000_000)
     fixed_price_cents: int | None = Field(default=None, ge=1, le=100_000_000)
     start_date: date | None = None
@@ -156,9 +174,13 @@ class ProjectResponse(BaseModel):
     status: ProjectStatus
     priority: Priority
     contract_type: ContractType
+    source_type: WorkSourceType
+    legal_channel: LegalChannel
+    billing_model: BillingModel
     billing_currency: str
     hourly_rate_cents: int | None
     expected_hours_per_week: Decimal | None
+    monthly_commitment_hours: Decimal | None
     monthly_rate_cents: int | None
     fixed_price_cents: int | None
     start_date: date | None
@@ -169,6 +191,7 @@ class ProjectResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     progress_percent: int
+    show_progress: bool
     estimated_hours: float
     actual_hours: float
     expected_weekly_income_cents: int | None

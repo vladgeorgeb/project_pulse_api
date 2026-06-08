@@ -18,6 +18,28 @@ class ContractType(StrEnum):
     NON_BILLABLE = "non_billable"
 
 
+class WorkSourceType(StrEnum):
+    EMPLOYMENT = "employment"
+    FREELANCE = "freelance"
+    RETAINER = "retainer"
+    FIXED_PROJECT = "fixed_project"
+    HOURLY_PROJECT = "hourly_project"
+
+
+class LegalChannel(StrEnum):
+    CIM = "cim"
+    PFA = "pfa"
+    SRL = "srl"
+    PERSONAL = "personal"
+
+
+class BillingModel(StrEnum):
+    SALARY = "salary"
+    HOURLY = "hourly"
+    FIXED = "fixed"
+    RETAINER = "retainer"
+
+
 class PaymentCadence(StrEnum):
     WEEKLY = "weekly"
     BIWEEKLY = "biweekly"

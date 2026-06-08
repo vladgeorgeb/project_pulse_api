@@ -9,6 +9,7 @@ class DashboardSummaryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     workspace_id: int
+    selected_month: date
     total_projects: int
     active_projects: int
     completed_projects: int
@@ -18,6 +19,7 @@ class DashboardSummaryResponse(BaseModel):
     overdue_tasks: int
     estimated_hours: float
     actual_hours: float
+    committed_hours: float
     billable_value_cents: int
     capacity_used_percent: int
     active_billable_projects: int
@@ -27,6 +29,9 @@ class DashboardSummaryResponse(BaseModel):
     monthly_contract_revenue_estimate: float
     total_monthly_recurring_amount: float
     paid_this_month_amount: float
+    expected_this_month_amount: float
+    received_this_month_amount: float
+    outstanding_income_amount: float
     total_paid_amount: float
     pending_payment_amount: float
     overdue_payment_amount: float

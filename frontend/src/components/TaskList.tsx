@@ -329,6 +329,7 @@ export default function TaskList({
   const [priority, setPriority] = useState<Priority>("medium");
   const [estimatedHours, setEstimatedHours] = useState("2");
   const [dueDate, setDueDate] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -346,13 +347,14 @@ export default function TaskList({
     setPriority("medium");
     setEstimatedHours("2");
     setDueDate("");
+    setIsAdding(false);
   }
 
   return (
     <div className="task-section">
       <div className="task-list">
         {tasks.length === 0 ? (
-          <p className="muted">No tasks yet.</p>
+          <p className="muted">No work items yet.</p>
         ) : (
           tasks.map((task) => (
             <TaskCard
@@ -368,53 +370,61 @@ export default function TaskList({
         )}
       </div>
 
-      <form className="task-form" onSubmit={submit}>
-        <label className="quick-add-field quick-add-title">
-          <span>Task</span>
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Add a task or deliverable"
-            required
-            disabled={disabled}
-          />
-        </label>
-        <label className="quick-add-field">
-          <span>Priority</span>
-          <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)} disabled={disabled}>
-            {priorities.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="quick-add-field">
-          <span>Est. hours</span>
-          <input
-            type="number"
-            min={0}
-            step={0.5}
-            value={estimatedHours}
-            onChange={(event) => setEstimatedHours(event.target.value)}
-            aria-label="Estimated hours"
-            disabled={disabled}
-          />
-        </label>
-        <label className="quick-add-field">
-          <span>Due date</span>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(event) => setDueDate(event.target.value)}
-            aria-label="Due date"
-            disabled={disabled}
-          />
-        </label>
-        <button type="submit" className="small-button" disabled={disabled}>
-          Add task
+      <div className="inline-form-actions">
+        <button type="button" className="small-secondary-button" disabled={disabled} onClick={() => setIsAdding((current) => !current)}>
+          {isAdding ? "Close" : "Add work item"}
         </button>
-      </form>
+      </div>
+
+      {isAdding ? (
+        <form className="task-form" onSubmit={submit}>
+          <label className="quick-add-field quick-add-title">
+            <span>Work item</span>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Add work or a deliverable"
+              required
+              disabled={disabled}
+            />
+          </label>
+          <label className="quick-add-field">
+            <span>Priority</span>
+            <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)} disabled={disabled}>
+              {priorities.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="quick-add-field">
+            <span>Est. hours</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={estimatedHours}
+              onChange={(event) => setEstimatedHours(event.target.value)}
+              aria-label="Estimated hours"
+              disabled={disabled}
+            />
+          </label>
+          <label className="quick-add-field">
+            <span>Due date</span>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+              aria-label="Due date"
+              disabled={disabled}
+            />
+          </label>
+          <button type="submit" className="small-button" disabled={disabled}>
+            Add work item
+          </button>
+        </form>
+      ) : null}
     </div>
   );
 }

@@ -2,6 +2,9 @@ export type ProjectStatus = "planned" | "active" | "paused" | "completed" | "arc
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type Priority = "low" | "medium" | "high" | "urgent";
 export type ContractType = "hourly" | "monthly_retainer" | "fixed_price" | "non_billable";
+export type WorkSourceType = "employment" | "freelance" | "retainer" | "fixed_project" | "hourly_project";
+export type LegalChannel = "cim" | "pfa" | "srl" | "personal";
+export type BillingModel = "salary" | "hourly" | "fixed" | "retainer";
 export type PaymentCadence = "weekly" | "biweekly" | "monthly" | "milestone" | "manual" | "none";
 export type PaymentRecordStatus = "pending" | "paid" | "cancelled";
 export type PaymentMethod = "wire" | "bank_transfer" | "card" | "cash" | "other";
@@ -67,6 +70,7 @@ export interface AccountExportResponse {
 
 export interface DashboardSummary {
   workspace_id: number;
+  selected_month: string;
   total_projects: number;
   active_projects: number;
   completed_projects: number;
@@ -76,6 +80,7 @@ export interface DashboardSummary {
   overdue_tasks: number;
   estimated_hours: number;
   actual_hours: number;
+  committed_hours: number;
   billable_value_cents: number;
   capacity_used_percent: number;
   active_billable_projects: number;
@@ -85,6 +90,9 @@ export interface DashboardSummary {
   monthly_contract_revenue_estimate: number;
   total_monthly_recurring_amount: number;
   paid_this_month_amount: number;
+  expected_this_month_amount: number;
+  received_this_month_amount: number;
+  outstanding_income_amount: number;
   total_paid_amount: number;
   pending_payment_amount: number;
   overdue_payment_amount: number;
@@ -146,9 +154,13 @@ export interface Project {
   status: ProjectStatus;
   priority: Priority;
   contract_type: ContractType;
+  source_type: WorkSourceType;
+  legal_channel: LegalChannel;
+  billing_model: BillingModel;
   billing_currency: string;
   hourly_rate_cents: number | null;
   expected_hours_per_week: string | number | null;
+  monthly_commitment_hours: string | number | null;
   monthly_rate_cents: number | null;
   fixed_price_cents: number | null;
   start_date: string | null;
@@ -159,6 +171,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   progress_percent: number;
+  show_progress: boolean;
   estimated_hours: number;
   actual_hours: number;
   expected_weekly_income_cents: number | null;
@@ -198,9 +211,13 @@ export interface ProjectCreatePayload {
   status: ProjectStatus;
   priority: Priority;
   contract_type: ContractType;
+  source_type?: WorkSourceType | null;
+  legal_channel?: LegalChannel;
+  billing_model?: BillingModel | null;
   billing_currency: string;
   hourly_rate_cents?: number | null;
   expected_hours_per_week?: number | null;
+  monthly_commitment_hours?: number | null;
   monthly_rate_cents?: number | null;
   fixed_price_cents?: number | null;
   start_date?: string | null;

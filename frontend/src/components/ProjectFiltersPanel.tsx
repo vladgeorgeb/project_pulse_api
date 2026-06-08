@@ -9,6 +9,8 @@ interface ProjectFiltersPanelProps {
   totalPages?: number;
   onPreviousPage?: () => void;
   onNextPage?: () => void;
+  selectedMonth: string;
+  onSelectedMonthChange: (month: string) => void;
   newProjectAction?: ReactNode;
   children?: ReactNode;
   onChange: (filters: ProjectFilters) => void;
@@ -35,6 +37,8 @@ export default function ProjectFiltersPanel({
   totalPages,
   onPreviousPage,
   onNextPage,
+  selectedMonth,
+  onSelectedMonthChange,
   newProjectAction,
   children,
   onChange,
@@ -51,10 +55,10 @@ export default function ProjectFiltersPanel({
   const activeSortValue = `${currentSortBy}:${currentSortDirection}`;
 
   return (
-    <section className="filters-card project-ledger-module" aria-label="Client projects">
+    <section className="filters-card project-ledger-module" aria-label="Work sources">
       <div className="project-ledger-header">
         <div className="panel-heading compact-panel-heading project-ledger-heading">
-          <h2>Client projects</h2>
+          <h2>Work sources</h2>
           {resultSummary ? (
             <>
               <span className="project-ledger-heading-separator" aria-hidden="true">
@@ -80,6 +84,15 @@ export default function ProjectFiltersPanel({
           </div>
 
           <div className="project-ledger-view-controls" aria-label="View controls">
+            <input
+              className="project-ledger-toolbar-select"
+              type="month"
+              value={selectedMonth}
+              onChange={(event) => onSelectedMonthChange(event.target.value)}
+              disabled={disabled}
+              aria-label="Selected dashboard month"
+              title="Selected dashboard month"
+            />
             <select
               className="project-ledger-toolbar-select"
               value={activeSortValue}
@@ -88,7 +101,7 @@ export default function ProjectFiltersPanel({
                 updateFilter({ ...filters, sort_by: sortBy, sort_dir: sortDir });
               }}
               disabled={disabled}
-              aria-label="Project sorting"
+              aria-label="Work source sorting"
               title={`Sorting by ${sortOptions.find((option) => option.value === currentSortBy)?.label ?? "Priority"} ${currentSortDirection === "desc" ? "descending" : "ascending"}`}
             >
               {sortOptions.flatMap((option) => [
@@ -106,7 +119,7 @@ export default function ProjectFiltersPanel({
               value={filters.page_size ?? 20}
               onChange={(event) => updateFilter({ ...filters, page_size: Number(event.target.value) })}
               disabled={disabled}
-              aria-label="Projects per page"
+              aria-label="Work sources per page"
               title={`Showing ${filters.page_size ?? 20} rows per page`}
             >
               {pageSizeOptions.map((size) => (
@@ -151,7 +164,7 @@ export default function ProjectFiltersPanel({
               <input
                 value={filters.search ?? ""}
                 onChange={(event) => updateFilter({ ...filters, search: event.target.value })}
-                placeholder="Project, deliverable, or description"
+                placeholder="Source, deliverable, or description"
                 disabled={disabled}
               />
             </label>

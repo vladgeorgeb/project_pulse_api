@@ -14,6 +14,7 @@ interface PaymentRecordFormProps {
   project: Project;
   disabled: boolean;
   submitLabel: string;
+  initialStatus?: PaymentRecordStatus;
   paymentRecord?: PaymentRecord;
   onSubmit: (payload: PaymentRecordCreatePayload) => Promise<void>;
   onCancel: () => void;
@@ -74,10 +75,10 @@ function isPeriodBasedContract(project: Project): boolean {
   return project.contract_type === "hourly" || project.contract_type === "monthly_retainer";
 }
 
-function PaymentRecordForm({ project, disabled, submitLabel, paymentRecord, onSubmit, onCancel }: PaymentRecordFormProps) {
+function PaymentRecordForm({ project, disabled, submitLabel, initialStatus = "pending", paymentRecord, onSubmit, onCancel }: PaymentRecordFormProps) {
   const [amount, setAmount] = useState(centsToInput(paymentRecord?.amount_cents ?? null));
   const [currency, setCurrency] = useState(paymentRecord?.currency ?? project.billing_currency);
-  const [status, setStatus] = useState<PaymentRecordStatus>(paymentRecord?.status ?? "paid");
+  const [status, setStatus] = useState<PaymentRecordStatus>(paymentRecord?.status ?? initialStatus);
   const [method, setMethod] = useState<PaymentMethod | "">(paymentRecord?.method ?? "");
   const [paidAt, setPaidAt] = useState(dateTimeToInput(paymentRecord?.paid_at) || nowLocalDateTimeInput());
   const [dueDate, setDueDate] = useState(paymentRecord?.due_date ?? "");
@@ -107,7 +108,7 @@ function PaymentRecordForm({ project, disabled, submitLabel, paymentRecord, onSu
     <form className="payment-record-form" onSubmit={submit}>
       <div className="four-column-form">
         <label>Amount ({currency})<input type="number" min={0.01} step={0.01} value={amount} onChange={(event) => setAmount(event.target.value)} required disabled={disabled} /></label>
-        <label>Billing currency<select value={currency} onChange={(event) => setCurrency(event.target.value)} disabled={disabled}>{paymentCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Currency<select value={currency} onChange={(event) => setCurrency(event.target.value)} disabled={disabled}>{paymentCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
         <label>Status<select value={status} onChange={(event) => setStatus(event.target.value as PaymentRecordStatus)} disabled={disabled}>{paymentStatuses.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
         <label>Method<select value={method} onChange={(event) => setMethod(event.target.value as PaymentMethod)} disabled={disabled}><option value="">Select</option>{paymentMethods.map((item) => <option key={item} value={item}>{item.replace("_", " ")}</option>)}</select></label>
       </div>
@@ -129,7 +130,7 @@ function PaymentRecordForm({ project, disabled, submitLabel, paymentRecord, onSu
 }
 
 export default function PaymentHistory({ project, disabled, onCreatePaymentRecord, onUpdatePaymentRecord, onDeletePaymentRecord }: PaymentHistoryProps) {
-  const [isAdding, setIsAdding] = useState(false);
+  const [addingMode, setAddingMode] = useState<"expected" | "received" | null>(null);
   const [editingPaymentRecordId, setEditingPaymentRecordId] = useState<number | null>(null);
   const sortedPaymentRecords = useMemo(
     () => [...project.payment_records].sort((first, second) => (first.due_date ?? "9999-12-31").localeCompare(second.due_date ?? "9999-12-31") || first.id - second.id),
@@ -143,21 +144,38 @@ export default function PaymentHistory({ project, disabled, onCreatePaymentRecor
     <section className="payment-history">
       <div className="payment-history-header">
         <div>
-          <strong>Payments</strong>
+          <strong>Income</strong>
           <div className="payment-summary-row" aria-label="Payment summary">
             <span>{sortedPaymentRecords.length} records</span>
-            <span className="payment-summary-paid">{formatPaymentAmount(paidTotalCents, project.billing_currency)} paid</span>
+            <span className="payment-summary-paid">{formatPaymentAmount(paidTotalCents, project.billing_currency)} received</span>
             <span className={classNames("payment-summary-pending", pendingTotalCents > 0 ? "has-pending" : undefined)}>
               {formatPaymentAmount(pendingTotalCents, project.billing_currency)} pending
             </span>
             {overdueCount > 0 ? <span className="payment-summary-overdue">{overdueCount} overdue</span> : null}
           </div>
         </div>
-        <button type="button" className="small-secondary-button" disabled={disabled} onClick={() => { setIsAdding((current) => !current); setEditingPaymentRecordId(null); }}>
-          {isAdding ? "Close" : "Add payment"}
-        </button>
+        <div className="inline-form-actions">
+          <button type="button" className="small-secondary-button" disabled={disabled} onClick={() => { setAddingMode((current) => (current === "expected" ? null : "expected")); setEditingPaymentRecordId(null); }}>
+            {addingMode === "expected" ? "Close" : "Add expected income"}
+          </button>
+          <button type="button" className="small-button" disabled={disabled} onClick={() => { setAddingMode((current) => (current === "received" ? null : "received")); setEditingPaymentRecordId(null); }}>
+            {addingMode === "received" ? "Close" : "Mark received"}
+          </button>
+        </div>
       </div>
-      {isAdding ? <PaymentRecordForm project={project} disabled={disabled} submitLabel="Add payment" onCancel={() => setIsAdding(false)} onSubmit={async (payload) => { await onCreatePaymentRecord(project.id, payload); setIsAdding(false); }} /> : null}
+      {addingMode ? (
+        <PaymentRecordForm
+          project={project}
+          disabled={disabled}
+          submitLabel={addingMode === "expected" ? "Add expected income" : "Mark received"}
+          initialStatus={addingMode === "expected" ? "pending" : "paid"}
+          onCancel={() => setAddingMode(null)}
+          onSubmit={async (payload) => {
+            await onCreatePaymentRecord(project.id, payload);
+            setAddingMode(null);
+          }}
+        />
+      ) : null}
 
       <div className="payment-record-list">
         {sortedPaymentRecords.map((paymentRecord) => {
@@ -165,14 +183,14 @@ export default function PaymentHistory({ project, disabled, onCreatePaymentRecor
           return (
             <article className="payment-record-row" key={paymentRecord.id}>
               <div className="payment-record-main">
-                <span className={classNames("payment-pill", paymentRecord.is_overdue ? "overdue" : paymentRecord.status)}>{paymentRecord.is_overdue ? "Overdue" : paymentRecord.status}</span>
+                <span className={classNames("payment-pill", paymentRecord.is_overdue ? "overdue" : paymentRecord.status)}>{paymentRecord.is_overdue ? "Overdue" : paymentRecord.status === "paid" ? "Received" : paymentRecord.status}</span>
                 <strong>{formatPaymentAmount(getAmountCents(paymentRecord), paymentRecord.currency)}</strong>
                 {paymentRecord.status === "pending" && paymentRecord.due_date ? <span>Expected {formatDate(paymentRecord.due_date)}</span> : null}
                 {paymentRecord.paid_at ? <span>Received {formatDateTime(paymentRecord.paid_at)}</span> : null}
               </div>
-              {isEditing ? <PaymentRecordForm project={project} disabled={disabled} submitLabel="Save payment" paymentRecord={paymentRecord} onCancel={() => setEditingPaymentRecordId(null)} onSubmit={async (payload) => { await onUpdatePaymentRecord(project.id, paymentRecord.id, payload); setEditingPaymentRecordId(null); }} /> : null}
+              {isEditing ? <PaymentRecordForm project={project} disabled={disabled} submitLabel="Save income" paymentRecord={paymentRecord} onCancel={() => setEditingPaymentRecordId(null)} onSubmit={async (payload) => { await onUpdatePaymentRecord(project.id, paymentRecord.id, payload); setEditingPaymentRecordId(null); }} /> : null}
               <div className="inline-form-actions">
-                <button type="button" className="small-quiet-button" disabled={disabled} onClick={() => { setEditingPaymentRecordId((current) => (current === paymentRecord.id ? null : paymentRecord.id)); setIsAdding(false); }}>{isEditing ? "Close edit" : "Edit"}</button>
+                <button type="button" className="small-quiet-button" disabled={disabled} onClick={() => { setEditingPaymentRecordId((current) => (current === paymentRecord.id ? null : paymentRecord.id)); setAddingMode(null); }}>{isEditing ? "Close edit" : "Edit"}</button>
                 <button type="button" className="small-danger-button low-emphasis-danger" disabled={disabled} onClick={() => onDeletePaymentRecord(project.id, paymentRecord.id)}>Delete</button>
               </div>
             </article>

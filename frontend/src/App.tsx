@@ -34,6 +34,10 @@ const APP_VERSION = __APP_VERSION__;
 
 type Theme = "light" | "dark";
 
+function currentMonthValue(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "light" || stored === "dark") return stored;
@@ -74,6 +78,7 @@ export default function App() {
     sort_by: "priority",
     sort_dir: "asc",
   });
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthValue);
   const [state, setState] = useState<DashboardState>(initialDashboardState);
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
@@ -112,7 +117,7 @@ export default function App() {
       const [user, workspace, summary, projectPageData] = await Promise.all([
         api.getCurrentUser(token),
         api.getWorkspace(token),
-        api.getDashboardSummary(token),
+        api.getDashboardSummary(token, selectedMonth),
         api.listProjects(token, filters),
       ]);
       setCurrentUser(user);
@@ -126,7 +131,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [clearAuthState, filters, token]);
+  }, [clearAuthState, filters, selectedMonth, token]);
 
   const refreshAdminFeedback = useCallback(async () => {
     if (!token) return;
@@ -262,23 +267,30 @@ export default function App() {
       const [clientPortal, analytics, migration] = await Promise.all([
         api.createProject(token!, {
           title: "Monthly Backend Retainer",
-          client_name: "Northstar Labs",
+          client_name: "Retainer Client",
           description: "Ongoing backend API maintenance, bug fixes, and delivery support.",
           status: "active",
           priority: "high",
           contract_type: "monthly_retainer",
+          source_type: "retainer",
+          legal_channel: "personal",
+          billing_model: "retainer",
           billing_currency: "USD",
           monthly_rate_cents: 550000,
+          monthly_commitment_hours: 24,
           payment_cadence: "monthly",
           deadline: isoDate(28),
         }),
         api.createProject(token!, {
           title: "Invoice Workflow Automation",
-          client_name: "BrightOps",
+          client_name: "Operations Client",
           description: "Internal automation for recurring monthly reporting and invoice preparation.",
           status: "active",
           priority: "medium",
           contract_type: "fixed_price",
+          source_type: "fixed_project",
+          legal_channel: "personal",
+          billing_model: "fixed",
           billing_currency: "USD",
           fixed_price_cents: 240000,
           payment_cadence: "milestone",
@@ -286,12 +298,15 @@ export default function App() {
         }),
         api.createProject(token!, {
           title: "Client CRM Integration",
-          client_name: "Atlas Group",
+          client_name: "Integration Client",
           description: "Discovery and implementation plan for integrating a client CRM with backend services.",
           status: "planned",
           priority: "medium",
           hourly_rate_cents: 10_000,
           contract_type: "hourly",
+          source_type: "hourly_project",
+          legal_channel: "pfa",
+          billing_model: "hourly",
           billing_currency: "USD",
           expected_hours_per_week: 6,
           payment_cadence: "biweekly",
@@ -446,7 +461,14 @@ export default function App() {
 
       {error ? <div className="notice">{error}</div> : null}
 
-      {state.summary ? <SummaryCards summary={state.summary} workspace={state.workspace} projects={state.projects} /> : null}
+      {state.summary ? (
+        <SummaryCards
+          summary={state.summary}
+          workspace={state.workspace}
+          projects={state.projects}
+          selectedMonth={selectedMonth}
+        />
+      ) : null}
 
       {showAdminFeedback && isAdmin ? (
         <section className="dashboard-grid">
@@ -474,12 +496,15 @@ export default function App() {
             onCreate={(payload) => mutate(() => api.createProject(authToken, payload))}
           />
         }
+        selectedMonth={selectedMonth}
+        onSelectedMonthChange={setSelectedMonth}
         onChange={updateFilters}
         disabled={isLoading || isMutating}
       >
         {state.projects.length === 0 && !isLoading ? null : (
           <ProjectBoard
             projects={state.projects}
+            selectedMonth={selectedMonth}
             disabled={isMutating}
             onCreateTask={(projectId, payload) => mutate(() => api.createTask(authToken, projectId, payload))}
             onUpdateProject={(projectId, payload: ProjectUpdatePayload) =>
@@ -508,7 +533,7 @@ export default function App() {
             }
             onDeleteTask={(taskId) => mutate(() => api.deleteTask(authToken, taskId))}
             onCompleteProject={(projectId) =>
-              mutate(() => api.completeProject(authToken, projectId), "Project completed.")
+              mutate(() => api.completeProject(authToken, projectId), "Source closed.")
             }
             onArchiveProject={(project) =>
               {

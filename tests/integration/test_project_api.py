@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi.testclient import TestClient
 
 
@@ -261,3 +263,195 @@ def test_dashboard_summary_counts_archived_projects_by_status(
     assert summary["total_projects"] == 2
     assert summary["archived_projects"] == 1
     assert summary["active_projects"] == 1
+
+
+def test_monthly_commitment_source_does_not_double_count_old_tasks(
+    client: TestClient,
+) -> None:
+    token = _register(client, "monthly-commitment@example.com")
+    headers = _headers(token)
+
+    source_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Employment Source",
+            "client_name": "Employment Client",
+            "status": "active",
+            "source_type": "employment",
+            "legal_channel": "cim",
+            "billing_model": "salary",
+            "contract_type": "monthly_retainer",
+            "billing_currency": "RON",
+            "monthly_rate_cents": 1200000,
+            "monthly_commitment_hours": 168,
+            "payment_cadence": "monthly",
+        },
+        headers=headers,
+    )
+    assert source_response.status_code == 201, source_response.text
+    source = source_response.json()
+    assert source["source_type"] == "employment"
+    assert source["legal_channel"] == "cim"
+    assert source["billing_model"] == "salary"
+    assert source["monthly_commitment_hours"] == "168.00"
+
+    may_task = client.post(
+        f"/api/v1/projects/{source['id']}/tasks",
+        json={
+            "title": "May salary month",
+            "status": "done",
+            "estimated_minutes": 168 * 60,
+            "actual_minutes": 168 * 60,
+            "due_date": "2026-05-31",
+        },
+        headers=headers,
+    )
+    assert may_task.status_code == 201, may_task.text
+    june_task = client.post(
+        f"/api/v1/projects/{source['id']}/tasks",
+        json={
+            "title": "June salary month",
+            "status": "in_progress",
+            "estimated_minutes": 168 * 60,
+            "due_date": "2026-06-30",
+        },
+        headers=headers,
+    )
+    assert june_task.status_code == 201, june_task.text
+
+    summary_response = client.get(
+        "/api/v1/dashboard/summary?month=2026-06",
+        headers=headers,
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["selected_month"] == "2026-06-01"
+    assert summary["committed_hours"] == 168.0
+    assert summary["estimated_hours"] == 168.0
+    assert summary["capacity_used_percent"] == 100
+
+
+def test_hourly_freelance_source_counts_only_selected_month_tasks(
+    client: TestClient,
+) -> None:
+    token = _register(client, "hourly-freelance@example.com")
+    headers = _headers(token)
+
+    source_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Freelance Source",
+            "client_name": "Freelance Client",
+            "status": "active",
+            "source_type": "freelance",
+            "legal_channel": "pfa",
+            "billing_model": "hourly",
+            "contract_type": "hourly",
+            "billing_currency": "USD",
+            "hourly_rate_cents": 2800,
+            "payment_cadence": "manual",
+        },
+        headers=headers,
+    )
+    assert source_response.status_code == 201, source_response.text
+    source = source_response.json()
+
+    old_task = client.post(
+        f"/api/v1/projects/{source['id']}/tasks",
+        json={
+            "title": "May approved work",
+            "status": "done",
+            "estimated_minutes": 180,
+            "actual_minutes": 180,
+            "due_date": "2026-05-31",
+        },
+        headers=headers,
+    )
+    assert old_task.status_code == 201, old_task.text
+    current_task = client.post(
+        f"/api/v1/projects/{source['id']}/tasks",
+        json={
+            "title": "June approved work",
+            "status": "in_progress",
+            "estimated_minutes": 378,
+            "actual_minutes": 378,
+            "due_date": "2026-06-15",
+        },
+        headers=headers,
+    )
+    assert current_task.status_code == 201, current_task.text
+
+    summary_response = client.get(
+        "/api/v1/dashboard/summary?month=2026-06",
+        headers=headers,
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["committed_hours"] == 6.3
+    assert summary["actual_hours"] == 6.3
+    assert summary["billable_value_cents"] == 17640
+
+
+def test_income_summary_is_month_scoped_and_received_records_are_not_overdue(
+    client: TestClient,
+) -> None:
+    token = _register(client, "income-summary@example.com")
+    headers = _headers(token)
+    source_response = client.post(
+        "/api/v1/projects",
+        json={
+            "title": "Income Source",
+            "client_name": "Acme",
+            "status": "active",
+            "source_type": "freelance",
+            "legal_channel": "pfa",
+            "billing_model": "hourly",
+            "contract_type": "hourly",
+            "billing_currency": "USD",
+            "hourly_rate_cents": 5000,
+            "payment_cadence": "manual",
+        },
+        headers=headers,
+    )
+    assert source_response.status_code == 201, source_response.text
+    source = source_response.json()
+
+    records = [
+        {
+            "amount_cents": 5000,
+            "currency": "USD",
+            "status": "paid",
+            "paid_at": datetime(2026, 6, 2, 9, 0, 0).isoformat(),
+            "due_date": "2026-06-01",
+        },
+        {
+            "amount_cents": 2500,
+            "currency": "USD",
+            "status": "pending",
+            "due_date": "2026-06-01",
+        },
+        {
+            "amount_cents": 9000,
+            "currency": "USD",
+            "status": "pending",
+            "due_date": "2026-07-15",
+        },
+    ]
+    for record in records:
+        response = client.post(
+            f"/api/v1/projects/{source['id']}/payments",
+            json=record,
+            headers=headers,
+        )
+        assert response.status_code == 201, response.text
+
+    summary_response = client.get(
+        "/api/v1/dashboard/summary?month=2026-06",
+        headers=headers,
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["expected_this_month_amount"] == 75.0
+    assert summary["received_this_month_amount"] == 50.0
+    assert summary["overdue_payment_amount"] == 25.0
+    assert summary["overdue_payments"] == 1

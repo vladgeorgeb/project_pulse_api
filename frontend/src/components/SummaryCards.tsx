@@ -5,6 +5,7 @@ interface SummaryCardsProps {
   summary: DashboardSummary;
   workspace: Workspace | null;
   projects: Project[];
+  selectedMonth: string;
 }
 
 interface SnapshotSectionProps {
@@ -19,10 +20,6 @@ const DEADLINE_SOON_DAYS = 14;
 
 function isOpenProject(project: Project): boolean {
   return project.status !== "completed" && project.status !== "archived";
-}
-
-function isActiveOrPlannedProject(project: Project): boolean {
-  return project.status === "active" || project.status === "planned";
 }
 
 function parseDateOnly(value: string | null): Date | null {
@@ -97,13 +94,12 @@ function SnapshotSection({ title, value, detail, status, meta }: SnapshotSection
   );
 }
 
-export default function SummaryCards({ summary, workspace, projects }: SummaryCardsProps) {
+export default function SummaryCards({ summary, workspace, projects, selectedMonth }: SummaryCardsProps) {
   const today = new Date();
   const monthlyCapacityHours = workspace?.monthly_capacity_hours ?? 0;
   const activeProjects = projects.filter((project) => project.status === "active");
-  const activeOrPlannedProjects = projects.filter(isActiveOrPlannedProject);
   const activeFixedAmount = formatProjectCurrencyTotal(activeProjects, (project) => project.fixed_price_cents);
-  const estimatedCommittedHours = activeOrPlannedProjects.reduce((total, project) => total + project.estimated_hours, 0);
+  const estimatedCommittedHours = summary.committed_hours;
   const availableEstimatedHours = Math.max(monthlyCapacityHours - estimatedCommittedHours, 0);
   const committedPercent =
     monthlyCapacityHours > 0 ? Math.min(999, Math.round((estimatedCommittedHours / monthlyCapacityHours) * 100)) : 0;
@@ -120,6 +116,9 @@ export default function SummaryCards({ summary, workspace, projects }: SummaryCa
     summary.pending_payment_amount > 0 ? `${formatPaymentAmount(summary, summary.pending_payment_amount)} pending` : "No pending";
   const overduePaymentText =
     summary.overdue_payment_amount > 0 ? `${formatPaymentAmount(summary, summary.overdue_payment_amount)} overdue` : "No overdue";
+  const monthLabel = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(
+    new Date(`${selectedMonth}-01T00:00:00`),
+  );
 
   return (
     <section className="summary-section" aria-label="Dashboard snapshot">
@@ -128,7 +127,7 @@ export default function SummaryCards({ summary, workspace, projects }: SummaryCa
           <div className="business-snapshot-section capacity-section">
             <span>Capacity</span>
             <strong>{`${formatHours(estimatedCommittedHours)} / ${formatHours(monthlyCapacityHours)} committed`}</strong>
-            <small>{`${formatHours(availableEstimatedHours)} free`}</small>
+            <small>{`${formatHours(availableEstimatedHours)} free in ${monthLabel}`}</small>
             <div className="snapshot-capacity-bar" aria-label="Estimated committed capacity">
               <div style={{ width: `${Math.min(committedPercent, 100)}%` }} />
             </div>
@@ -146,11 +145,11 @@ export default function SummaryCards({ summary, workspace, projects }: SummaryCa
           />
 
           <SnapshotSection
-            title="Cashflow"
-            value={`${formatPaymentAmount(summary, summary.paid_this_month_amount)} paid this month`}
-            detail={`${pendingPaymentText} / ${overduePaymentText}`}
+            title="Income"
+            value={`${formatPaymentAmount(summary, summary.received_this_month_amount)} received`}
+            detail={`${formatPaymentAmount(summary, summary.expected_this_month_amount)} expected / ${pendingPaymentText}`}
             status={cashflowStatus}
-            meta={formatNextDue(summary)}
+            meta={`${overduePaymentText} / ${formatNextDue(summary)}`}
           />
 
           <SnapshotSection

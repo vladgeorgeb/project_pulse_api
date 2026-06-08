@@ -156,8 +156,9 @@ export const api = {
     });
   },
 
-  async getDashboardSummary(token: string): Promise<DashboardSummary> {
-    return request<DashboardSummary>("/dashboard/summary", token);
+  async getDashboardSummary(token: string, month?: string): Promise<DashboardSummary> {
+    const query = toQueryString({ month });
+    return request<DashboardSummary>(`/dashboard/summary${query}`, token);
   },
 
   async listProjects(token: string, filters: ProjectFilters = {}): Promise<ProjectListResponse> {

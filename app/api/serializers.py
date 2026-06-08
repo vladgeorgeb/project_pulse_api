@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from app.domain.enums import ContractType
+from app.domain.enums import ContractType, WorkSourceType
 from app.domain.project_rules import calculate_progress_percent
 from app.models.project import Project
 from app.models.workspace import Workspace
@@ -24,6 +24,8 @@ def _expected_weekly_income_cents(project: Project) -> int | None:
 
 
 def _expected_monthly_income_cents(project: Project) -> int | None:
+    if project.contract_type == ContractType.MONTHLY_RETAINER.value:
+        return project.monthly_rate_cents
     weekly = _expected_weekly_income_cents(project)
     if weekly is None:
         return None
@@ -56,6 +58,9 @@ def _expected_total_contract_value_cents(project: Project) -> int | None:
 
 def to_project_response(project: Project) -> ProjectResponse:
     tasks = list(project.tasks)
+    show_progress = project.source_type == WorkSourceType.FIXED_PROJECT.value or (
+        project.source_type == WorkSourceType.HOURLY_PROJECT.value and len(tasks) > 0
+    )
     return ProjectResponse(
         id=project.id,
         workspace_id=project.workspace_id,
@@ -65,9 +70,13 @@ def to_project_response(project: Project) -> ProjectResponse:
         status=project.status,
         priority=project.priority,
         contract_type=project.contract_type,
+        source_type=project.source_type,
+        legal_channel=project.legal_channel,
+        billing_model=project.billing_model,
         billing_currency=project.billing_currency,
         hourly_rate_cents=project.hourly_rate_cents,
         expected_hours_per_week=project.expected_hours_per_week,
+        monthly_commitment_hours=project.monthly_commitment_hours,
         monthly_rate_cents=project.monthly_rate_cents,
         fixed_price_cents=project.fixed_price_cents,
         start_date=project.start_date,
@@ -78,6 +87,7 @@ def to_project_response(project: Project) -> ProjectResponse:
         created_at=project.created_at,
         updated_at=project.updated_at,
         progress_percent=calculate_progress_percent(task.status for task in tasks),
+        show_progress=show_progress,
         estimated_hours=round(sum(task.estimated_minutes for task in tasks) / 60, 2),
         actual_hours=round(sum(task.actual_minutes for task in tasks) / 60, 2),
         expected_weekly_income_cents=_expected_weekly_income_cents(project),

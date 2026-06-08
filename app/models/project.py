@@ -41,11 +41,35 @@ class Project(Base):
         server_default=ContractType.FIXED_PRICE.value,
         index=True,
     )
+    source_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="fixed_project",
+        server_default="fixed_project",
+        index=True,
+    )
+    legal_channel: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="personal",
+        server_default="personal",
+        index=True,
+    )
+    billing_model: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="fixed",
+        server_default="fixed",
+        index=True,
+    )
     billing_currency: Mapped[str] = mapped_column(
         String(3), nullable=False, default="USD", server_default="USD"
     )
     hourly_rate_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     expected_hours_per_week: Mapped[Decimal | None] = mapped_column(
+        Numeric(7, 2), nullable=True
+    )
+    monthly_commitment_hours: Mapped[Decimal | None] = mapped_column(
         Numeric(7, 2), nullable=True
     )
     monthly_rate_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
