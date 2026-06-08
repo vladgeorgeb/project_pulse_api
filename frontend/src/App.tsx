@@ -476,12 +476,8 @@ export default function App() {
         }
         onChange={updateFilters}
         disabled={isLoading || isMutating}
-      />
-
-      {state.projects.length === 0 && !isLoading ? (
-        <EmptyState onCreateDemoData={createDemoData} disabled={isMutating} />
-      ) : (
-        <>
+      >
+        {state.projects.length === 0 && !isLoading ? null : (
           <ProjectBoard
             projects={state.projects}
             disabled={isMutating}
@@ -526,8 +522,10 @@ export default function App() {
             }
             onDeleteProject={(projectId) => mutate(() => api.deleteProject(authToken, projectId))}
           />
-        </>
-      )}
+        )}
+      </ProjectFiltersPanel>
+
+      {state.projects.length === 0 && !isLoading ? <EmptyState onCreateDemoData={createDemoData} disabled={isMutating} /> : null}
     </main>
   );
 }

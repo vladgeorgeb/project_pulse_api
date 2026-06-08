@@ -76,14 +76,19 @@ export default function DashboardHeader({
           type="button"
           className="theme-switch"
           role="switch"
-          aria-checked={theme === "light"}
+          data-theme={theme}
+          aria-checked={theme === "dark"}
           aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           onClick={onToggleTheme}
         >
           <span className="theme-switch-track" aria-hidden="true">
-            <span className="theme-switch-icon theme-switch-sun" />
-            <span className="theme-switch-icon theme-switch-moon" />
-            <span className="theme-switch-knob" />
+            <span className="theme-switch-clouds" />
+            <span className="theme-switch-stars" />
+            <span className="theme-switch-knob">
+              <span className="theme-switch-sun" />
+              <span className="theme-switch-moon" />
+            </span>
           </span>
         </button>
         <div className="account-menu" ref={accountMenuRef}>

@@ -10,6 +10,7 @@ interface ProjectFiltersPanelProps {
   onPreviousPage?: () => void;
   onNextPage?: () => void;
   newProjectAction?: ReactNode;
+  children?: ReactNode;
   onChange: (filters: ProjectFilters) => void;
 }
 
@@ -17,13 +18,14 @@ const statuses: Array<ProjectStatus | ""> = ["", "planned", "active", "paused", 
 const priorities: Array<Priority | ""> = ["", "low", "medium", "high", "urgent"];
 const sortOptions: Array<{ value: ProjectSortBy; label: string }> = [
   { value: "priority", label: "Priority" },
-  { value: "deadline", label: "Deadline" },
+  { value: "deadline", label: "Due date" },
   { value: "title", label: "Title" },
   { value: "client_name", label: "Client" },
   { value: "contract_type", label: "Contract type" },
   { value: "created_at", label: "Created" },
   { value: "updated_at", label: "Updated" },
 ];
+const pageSizeOptions = [10, 20, 50, 100];
 
 export default function ProjectFiltersPanel({
   filters,
@@ -34,6 +36,7 @@ export default function ProjectFiltersPanel({
   onPreviousPage,
   onNextPage,
   newProjectAction,
+  children,
   onChange,
 }: ProjectFiltersPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -43,26 +46,79 @@ export default function ProjectFiltersPanel({
     onChange({ ...nextFilters, page: 1 });
   }
 
+  const currentSortDirection = filters.sort_dir ?? "asc";
+  const currentSortBy = filters.sort_by ?? "priority";
+  const activeSortValue = `${currentSortBy}:${currentSortDirection}`;
+
   return (
-    <section className="filters-card collapsible-card">
-      <div className="collapsible-card-header filters-toolbar">
-        <div className="panel-heading compact-panel-heading filters-toolbar-heading">
+    <section className="filters-card project-ledger-module" aria-label="Client projects">
+      <div className="project-ledger-header">
+        <div className="panel-heading compact-panel-heading project-ledger-heading">
           <h2>Client projects</h2>
-          {resultSummary ? <span>{resultSummary}</span> : null}
+          {resultSummary ? (
+            <>
+              <span className="project-ledger-heading-separator" aria-hidden="true">
+                ·
+              </span>
+              <span className="project-ledger-heading-meta">{resultSummary}</span>
+            </>
+          ) : null}
         </div>
-        <div className="filters-toolbar-actions">
-          {newProjectAction}
-          <button
-            type="button"
-            className="secondary-button compact-toggle-button toolbar-action-button"
-            disabled={disabled}
-            aria-expanded={isExpanded}
-            onClick={() => setIsExpanded((current) => !current)}
-          >
-            {isExpanded ? "Collapse" : "Filters"}
-          </button>
+
+        <div className="project-ledger-toolbar">
+          <div className="project-ledger-actions">
+            {newProjectAction}
+            <button
+              type="button"
+              className="secondary-button compact-toggle-button toolbar-action-button"
+              disabled={disabled}
+              aria-expanded={isExpanded}
+              onClick={() => setIsExpanded((current) => !current)}
+            >
+              {isExpanded ? "Collapse" : "Filters"}
+            </button>
+          </div>
+
+          <div className="project-ledger-view-controls" aria-label="View controls">
+            <select
+              className="project-ledger-toolbar-select"
+              value={activeSortValue}
+              onChange={(event) => {
+                const [sortBy, sortDir] = event.target.value.split(":") as [ProjectSortBy, SortDir];
+                updateFilter({ ...filters, sort_by: sortBy, sort_dir: sortDir });
+              }}
+              disabled={disabled}
+              aria-label="Project sorting"
+              title={`Sorting by ${sortOptions.find((option) => option.value === currentSortBy)?.label ?? "Priority"} ${currentSortDirection === "desc" ? "descending" : "ascending"}`}
+            >
+              {sortOptions.flatMap((option) => [
+                <option key={`${option.value}:asc`} value={`${option.value}:asc`}>
+                  {`${option.label} \u2191`}
+                </option>,
+                <option key={`${option.value}:desc`} value={`${option.value}:desc`}>
+                  {`${option.label} \u2193`}
+                </option>,
+              ])}
+            </select>
+
+            <select
+              className="project-ledger-toolbar-select project-ledger-page-size-select"
+              value={filters.page_size ?? 20}
+              onChange={(event) => updateFilter({ ...filters, page_size: Number(event.target.value) })}
+              disabled={disabled}
+              aria-label="Projects per page"
+              title={`Showing ${filters.page_size ?? 20} rows per page`}
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {`${size} rows`}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {hasPagination ? (
-            <div className="pagination-actions filters-pagination-actions">
+            <div className="pagination-actions filters-pagination-actions project-ledger-pagination">
               <button
                 type="button"
                 className="small-secondary-button toolbar-action-button toolbar-utility-button"
@@ -88,11 +144,10 @@ export default function ProjectFiltersPanel({
       </div>
 
       {isExpanded ? (
-        <div className="collapsible-card-body">
-          <p className="filters-helper-text">Filter client work by delivery state, priority, client, due date, or text search.</p>
-          <div className="filters-grid">
-            <label>
-              Search
+        <div className="project-ledger-filters">
+          <div className="project-ledger-filter-row">
+            <label className="project-ledger-filter-field project-ledger-filter-search">
+              <span>Search</span>
               <input
                 value={filters.search ?? ""}
                 onChange={(event) => updateFilter({ ...filters, search: event.target.value })}
@@ -101,8 +156,8 @@ export default function ProjectFiltersPanel({
               />
             </label>
 
-            <label>
-              Client
+            <label className="project-ledger-filter-field project-ledger-filter-client">
+              <span>Client</span>
               <input
                 value={filters.client_name ?? ""}
                 onChange={(event) => updateFilter({ ...filters, client_name: event.target.value })}
@@ -111,8 +166,8 @@ export default function ProjectFiltersPanel({
               />
             </label>
 
-            <label>
-              Status
+            <label className="project-ledger-filter-field">
+              <span>Status</span>
               <select
                 value={filters.status ?? ""}
                 onChange={(event) => updateFilter({ ...filters, status: event.target.value as ProjectStatus | "" })}
@@ -126,8 +181,8 @@ export default function ProjectFiltersPanel({
               </select>
             </label>
 
-            <label>
-              Priority
+            <label className="project-ledger-filter-field">
+              <span>Priority</span>
               <select
                 value={filters.priority ?? ""}
                 onChange={(event) => updateFilter({ ...filters, priority: event.target.value as Priority | "" })}
@@ -140,11 +195,9 @@ export default function ProjectFiltersPanel({
                 ))}
               </select>
             </label>
-          </div>
 
-          <div className="filters-grid secondary-filters-grid">
-            <label>
-              Due after
+            <label className="project-ledger-filter-field">
+              <span>Due after</span>
               <input
                 type="date"
                 value={filters.due_after ?? ""}
@@ -153,8 +206,8 @@ export default function ProjectFiltersPanel({
               />
             </label>
 
-            <label>
-              Due before
+            <label className="project-ledger-filter-field">
+              <span>Due before</span>
               <input
                 type="date"
                 value={filters.due_before ?? ""}
@@ -162,54 +215,8 @@ export default function ProjectFiltersPanel({
                 disabled={disabled}
               />
             </label>
-          </div>
 
-          <div className="filters-grid sorting-filters-grid">
-            <label>
-              Sort by
-              <select
-                value={filters.sort_by ?? "priority"}
-                onChange={(event) => updateFilter({ ...filters, sort_by: event.target.value as ProjectSortBy })}
-                disabled={disabled}
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Direction
-              <select
-                value={filters.sort_dir ?? "asc"}
-                onChange={(event) => updateFilter({ ...filters, sort_dir: event.target.value as SortDir })}
-                disabled={disabled}
-              >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </select>
-            </label>
-
-            <label>
-              Page size
-              <select
-                value={filters.page_size ?? 20}
-                onChange={(event) => updateFilter({ ...filters, page_size: Number(event.target.value) })}
-                disabled={disabled}
-              >
-                {[10, 20, 50, 100].map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="checkbox-row filters-actions-row">
-            <label>
+            <label className="project-ledger-filter-checkbox">
               <input
                 type="checkbox"
                 checked={Boolean(filters.overdue_only)}
@@ -218,7 +225,8 @@ export default function ProjectFiltersPanel({
               />
               Overdue only
             </label>
-            <label>
+
+            <label className="project-ledger-filter-checkbox">
               <input
                 type="checkbox"
                 checked={Boolean(filters.include_archived)}
@@ -227,9 +235,10 @@ export default function ProjectFiltersPanel({
               />
               Include archived
             </label>
+
             <button
               type="button"
-              className="small-secondary-button"
+              className="small-secondary-button toolbar-utility-button project-ledger-reset-button"
               disabled={disabled}
               onClick={() =>
                 onChange({
@@ -246,6 +255,8 @@ export default function ProjectFiltersPanel({
           </div>
         </div>
       ) : null}
+
+      {children ? <div className={`project-ledger-content${isExpanded ? " with-filter-strip" : ""}`}>{children}</div> : null}
     </section>
   );
 }
